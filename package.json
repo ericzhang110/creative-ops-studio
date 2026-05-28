@@ -1,0 +1,19 @@
+{
+  "name": "creative-ops-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Static MVP for multilingual banner generation and social media templates.",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "check": "node --check app.js",
+    "deploy": "bash scripts/deploy.sh",
+    "deploy:cloudflare": "npx wrangler pages deploy . --project-name creative-ops-studio",
+    "deploy:vercel": "npx vercel --prod",
+    "deploy:netlify": "npx netlify deploy --prod --dir=."
+  },
+  "keywords": [
+    "banner",
+    "creative-ops",
+    "static-site"
+  ]
+}

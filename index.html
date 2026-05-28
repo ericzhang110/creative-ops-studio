@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Creative Ops Studio</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">A</span>
+          <div>
+            <strong>Creative Ops</strong>
+            <small>Banner & Social Studio</small>
+          </div>
+        </div>
+
+        <nav class="mode-tabs" aria-label="工具">
+          <button class="mode-tab is-active" data-mode="banner" type="button">
+            <span>▦</span>
+            <span>多语言 Banner</span>
+          </button>
+          <button class="mode-tab" data-mode="social" type="button">
+            <span>◫</span>
+            <span>社媒模板</span>
+          </button>
+        </nav>
+
+        <section class="panel">
+          <h2>尺寸</h2>
+          <div class="preset-list" id="presetList"></div>
+        </section>
+
+        <section class="panel">
+          <h2>语言</h2>
+          <div class="language-grid" id="languageGrid"></div>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <h1 id="modeTitle">多语言 Banner 生成器</h1>
+            <p id="modeMeta">CSV 文案、核心尺寸、批量预览、PNG 导出</p>
+          </div>
+          <div class="actions">
+            <button class="ghost" id="fitButton" type="button" title="适配预览">⛶</button>
+            <button class="secondary" id="saveTemplate" type="button">存为模板</button>
+            <button class="secondary" id="resetLayout" type="button">重置版式</button>
+            <button class="primary" id="exportCurrent" type="button">导出当前</button>
+            <button class="primary" id="exportBatch" type="button">批量导出</button>
+          </div>
+        </header>
+
+        <div class="stage-wrap" id="stageWrap">
+          <canvas id="previewCanvas" width="970" height="250"></canvas>
+        </div>
+
+        <section class="output-strip">
+          <div>
+            <span class="metric" id="assetCount">0</span>
+            <small>待导出素材</small>
+          </div>
+          <div>
+            <span class="metric" id="selectedSpec">970 x 250</span>
+            <small>当前画布</small>
+          </div>
+          <div>
+            <span class="metric" id="activeLanguage">EN</span>
+            <small>当前语言</small>
+          </div>
+        </section>
+      </section>
+
+      <aside class="inspector">
+        <section class="panel">
+          <h2>画布编辑</h2>
+          <p class="hint" id="editHint">点击元素选中，拖动移动；拖右下角控制点调整大小。</p>
+          <div class="selected-chip" id="selectedElement">未选中元素</div>
+        </section>
+
+        <section class="panel">
+          <h2>内容</h2>
+          <label>
+            标题
+            <input id="headlineInput" type="text" />
+          </label>
+          <label>
+            副标题
+            <textarea id="subheadInput" rows="3"></textarea>
+          </label>
+          <label>
+            按钮
+            <input id="ctaInput" type="text" />
+          </label>
+        </section>
+
+        <section class="panel">
+          <h2>CSV / 多语言</h2>
+          <textarea id="csvInput" rows="7" spellcheck="false"></textarea>
+          <button class="wide" id="loadCsv" type="button">载入多语言</button>
+        </section>
+
+        <section class="panel">
+          <h2>样式</h2>
+          <label>
+            主色
+            <input id="accentInput" type="color" value="#30e7d0" />
+          </label>
+          <label>
+            背景
+            <input id="backgroundInput" type="color" value="#101319" />
+          </label>
+          <label class="check-row">
+            <input id="showMetricsInput" type="checkbox" checked />
+            <span>显示数据模块</span>
+          </label>
+        </section>
+      </aside>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
