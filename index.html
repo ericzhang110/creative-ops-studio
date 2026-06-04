@@ -55,7 +55,7 @@
         </header>
 
         <div class="stage-wrap" id="stageWrap">
-          <canvas id="previewCanvas" width="970" height="250"></canvas>
+          <canvas id="previewCanvas" width="970" height="250" tabindex="0" aria-label="可编辑画布"></canvas>
         </div>
 
         <section class="output-strip">
@@ -77,8 +77,31 @@
       <aside class="inspector">
         <section class="panel">
           <h2>画布编辑</h2>
-          <p class="hint" id="editHint">点击元素选中，拖动移动；拖右下角控制点调整大小。</p>
+          <p class="hint" id="editHint">点击元素选中，拖动移动；拖控制点调整大小。方向键微调位置，Shift + 方向键每次移动 10px。</p>
           <div class="selected-chip" id="selectedElement">未选中元素</div>
+          <div class="geometry-grid">
+            <label>
+              X
+              <input id="elementXInput" type="number" step="1" />
+            </label>
+            <label>
+              Y
+              <input id="elementYInput" type="number" step="1" />
+            </label>
+            <label>
+              W
+              <input id="elementWInput" type="number" step="1" />
+            </label>
+            <label>
+              H
+              <input id="elementHInput" type="number" step="1" />
+            </label>
+            <label>
+              字号
+              <input id="elementFontInput" type="number" step="1" />
+            </label>
+          </div>
+          <div class="template-status" id="templateStatus">未保存模板</div>
         </section>
 
         <section class="panel">

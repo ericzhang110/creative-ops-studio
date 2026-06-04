@@ -56,6 +56,7 @@ const state = {
   selectedId: null,
   elements: [],
   drag: null,
+  lastTemplateMessage: "",
   savedTemplates: JSON.parse(localStorage.getItem("creativeOpsTemplates") || "{}"),
 };
 
@@ -76,6 +77,12 @@ const els = {
   background: document.querySelector("#backgroundInput"),
   showMetrics: document.querySelector("#showMetricsInput"),
   selectedElement: document.querySelector("#selectedElement"),
+  templateStatus: document.querySelector("#templateStatus"),
+  elementX: document.querySelector("#elementXInput"),
+  elementY: document.querySelector("#elementYInput"),
+  elementW: document.querySelector("#elementWInput"),
+  elementH: document.querySelector("#elementHInput"),
+  elementFont: document.querySelector("#elementFontInput"),
 };
 
 const ctx = els.canvas.getContext("2d");
@@ -90,6 +97,10 @@ function clone(value) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function selectedElement() {
+  return state.elements.find((item) => item.id === state.selectedId) || null;
 }
 
 function defaultElements(mode, width, height) {
@@ -146,6 +157,10 @@ function adaptTemplate(template, width, height) {
   return elements;
 }
 
+function templateDescription(template) {
+  return template ? `模板基准 ${Math.round(template.width)} x ${Math.round(template.height)}` : "未保存模板";
+}
+
 function ensureLayout() {
   const [, width, height] = activePreset();
   els.canvas.width = width;
@@ -162,6 +177,9 @@ function applyTemplateForCurrentSize() {
   const saved = state.savedTemplates[state.mode];
   state.elements = saved ? adaptTemplate(saved, width, height) : defaultElements(state.mode, width, height);
   state.selectedId = null;
+  state.lastTemplateMessage = saved
+    ? `已按 ${Math.round(saved.width)} x ${Math.round(saved.height)} 模板适配到 ${width} x ${height}`
+    : "当前模式还没有保存模板，已使用默认版式";
 }
 
 function saveTemplate() {
@@ -170,9 +188,15 @@ function saveTemplate() {
     width,
     height,
     elements: clone(state.elements),
+    style: {
+      accent: state.accent,
+      background: state.background,
+      showMetrics: state.showMetrics,
+    },
   };
   localStorage.setItem("creativeOpsTemplates", JSON.stringify(state.savedTemplates));
-  els.selectedElement.textContent = "已保存当前版式为模板";
+  state.lastTemplateMessage = `已保存 ${width} x ${height} 为${state.mode === "banner" ? "多语言 Banner" : "社媒"}模板`;
+  updateSelectedLabel();
 }
 
 function renderPresetList() {
@@ -352,7 +376,13 @@ function drawSelection(el) {
   ctx.strokeRect(el.x, el.y, el.w, el.h);
   ctx.setLineDash([]);
   ctx.fillStyle = state.accent;
-  ctx.fillRect(el.x + el.w - 10, el.y + el.h - 10, 10, 10);
+  handleRects(el).forEach((handle) => {
+    ctx.fillStyle = handle.key === "se" ? state.accent : "#101319";
+    ctx.fillRect(handle.x, handle.y, handle.size, handle.size);
+    ctx.strokeStyle = state.accent;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(handle.x, handle.y, handle.size, handle.size);
+  });
   ctx.restore();
 }
 
@@ -381,10 +411,31 @@ function renderMeta() {
 }
 
 function updateSelectedLabel() {
-  const el = state.elements.find((item) => item.id === state.selectedId);
+  const el = selectedElement();
   els.selectedElement.textContent = el
     ? `${elementNames[el.id] || el.id} · ${Math.round(el.x)}, ${Math.round(el.y)} · ${Math.round(el.w)} x ${Math.round(el.h)}`
     : "未选中元素";
+  els.templateStatus.textContent = state.lastTemplateMessage || templateDescription(state.savedTemplates[state.mode]);
+  syncGeometryInputs(el);
+}
+
+function syncGeometryInputs(el) {
+  const controls = [els.elementX, els.elementY, els.elementW, els.elementH, els.elementFont];
+  controls.forEach((input) => {
+    input.disabled = !el;
+  });
+  if (!el) {
+    controls.forEach((input) => {
+      input.value = "";
+    });
+    return;
+  }
+  els.elementX.value = Math.round(el.x);
+  els.elementY.value = Math.round(el.y);
+  els.elementW.value = Math.round(el.w);
+  els.elementH.value = Math.round(el.h);
+  els.elementFont.disabled = !(el.type === "text" || el.type === "metric");
+  els.elementFont.value = el.font ? Math.round(el.font) : "";
 }
 
 function render() {
@@ -402,13 +453,56 @@ function canvasPoint(event) {
   };
 }
 
+function handleRects(el) {
+  const size = Math.max(8, Math.min(14, Math.min(els.canvas.width, els.canvas.height) * 0.025));
+  const half = size / 2;
+  const cx = el.x + el.w / 2;
+  const cy = el.y + el.h / 2;
+  return [
+    { key: "nw", x: el.x - half, y: el.y - half, size },
+    { key: "n", x: cx - half, y: el.y - half, size },
+    { key: "ne", x: el.x + el.w - half, y: el.y - half, size },
+    { key: "e", x: el.x + el.w - half, y: cy - half, size },
+    { key: "se", x: el.x + el.w - half, y: el.y + el.h - half, size },
+    { key: "s", x: cx - half, y: el.y + el.h - half, size },
+    { key: "sw", x: el.x - half, y: el.y + el.h - half, size },
+    { key: "w", x: el.x - half, y: cy - half, size },
+  ];
+}
+
+function handleAt(point, el) {
+  if (!el) return null;
+  return handleRects(el).find((handle) => (
+    point.x >= handle.x &&
+    point.x <= handle.x + handle.size &&
+    point.y >= handle.y &&
+    point.y <= handle.y + handle.size
+  )) || null;
+}
+
+function cursorForHandle(handle) {
+  const cursors = {
+    n: "ns-resize",
+    s: "ns-resize",
+    e: "ew-resize",
+    w: "ew-resize",
+    nw: "nwse-resize",
+    se: "nwse-resize",
+    ne: "nesw-resize",
+    sw: "nesw-resize",
+  };
+  return cursors[handle] || "default";
+}
+
 function hitTest(point) {
+  const selected = selectedElement();
+  const handle = handleAt(point, selected);
+  if (handle) return { el: selected, action: "resize", handle: handle.key };
   for (let i = state.elements.length - 1; i >= 0; i -= 1) {
     const el = state.elements[i];
     if (el.type === "metric" && !state.showMetrics) continue;
     if (point.x >= el.x && point.x <= el.x + el.w && point.y >= el.y && point.y <= el.y + el.h) {
-      const resize = point.x >= el.x + el.w - 18 && point.y >= el.y + el.h - 18;
-      return { el, resize };
+      return { el, action: "move", handle: null };
     }
   }
   return null;
@@ -424,7 +518,8 @@ function onPointerDown(event) {
   }
   state.selectedId = hit.el.id;
   state.drag = {
-    mode: hit.resize ? "resize" : "move",
+    mode: hit.action,
+    handle: hit.handle,
     startX: point.x,
     startY: point.y,
     original: clone(hit.el),
@@ -437,12 +532,12 @@ function onPointerMove(event) {
   const point = canvasPoint(event);
   if (!state.drag) {
     const hit = hitTest(point);
-    els.canvas.style.cursor = hit ? (hit.resize ? "nwse-resize" : "move") : "default";
+    els.canvas.style.cursor = hit ? (hit.action === "resize" ? cursorForHandle(hit.handle) : "move") : "default";
     return;
   }
 
   const [, width, height] = activePreset();
-  const el = state.elements.find((item) => item.id === state.selectedId);
+  const el = selectedElement();
   if (!el) return;
   const dx = point.x - state.drag.startX;
   const dy = point.y - state.drag.startY;
@@ -450,8 +545,7 @@ function onPointerMove(event) {
     el.x = state.drag.original.x + dx;
     el.y = state.drag.original.y + dy;
   } else {
-    el.w = state.drag.original.w + dx;
-    el.h = state.drag.original.h + dy;
+    resizeElementFromHandle(el, state.drag.original, dx, dy, state.drag.handle);
     if (el.font) {
       const scale = Math.min(el.w / state.drag.original.w, el.h / state.drag.original.h);
       el.font = state.drag.original.font * scale;
@@ -459,6 +553,37 @@ function onPointerMove(event) {
   }
   fitElement(el, width, height);
   renderCanvas();
+}
+
+function resizeElementFromHandle(el, original, dx, dy, handle) {
+  const minW = el.type === "text" ? 44 : 22;
+  const minH = el.type === "text" ? 24 : 20;
+  let x = original.x;
+  let y = original.y;
+  let w = original.w;
+  let h = original.h;
+
+  if (handle.includes("e")) w = original.w + dx;
+  if (handle.includes("s")) h = original.h + dy;
+  if (handle.includes("w")) {
+    x = original.x + dx;
+    w = original.w - dx;
+  }
+  if (handle.includes("n")) {
+    y = original.y + dy;
+    h = original.h - dy;
+  }
+
+  if (w < minW) {
+    if (handle.includes("w")) x = original.x + original.w - minW;
+    w = minW;
+  }
+  if (h < minH) {
+    if (handle.includes("n")) y = original.y + original.h - minH;
+    h = minH;
+  }
+
+  Object.assign(el, { x, y, w, h });
 }
 
 function onPointerUp(event) {
@@ -469,6 +594,38 @@ function onPointerUp(event) {
   } catch (error) {
     // Pointer capture may already be released by the browser.
   }
+}
+
+function updateSelectedGeometry(field, value) {
+  const el = selectedElement();
+  if (!el || Number.isNaN(value)) return;
+  const [, width, height] = activePreset();
+  if (field === "x") el.x = value;
+  if (field === "y") el.y = value;
+  if (field === "w") el.w = value;
+  if (field === "h") el.h = value;
+  if (field === "font" && (el.type === "text" || el.type === "metric")) el.font = value;
+  fitElement(el, width, height);
+  renderCanvas();
+}
+
+function nudgeSelected(event) {
+  const el = selectedElement();
+  if (!el) return;
+  const deltas = {
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0],
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1],
+  };
+  if (!deltas[event.key]) return;
+  event.preventDefault();
+  const amount = event.shiftKey ? 10 : 1;
+  const [, width, height] = activePreset();
+  el.x += deltas[event.key][0] * amount;
+  el.y += deltas[event.key][1] * amount;
+  fitElement(el, width, height);
+  renderCanvas();
 }
 
 function downloadCanvas(name) {
@@ -565,6 +722,17 @@ els.canvas.addEventListener("pointerdown", onPointerDown);
 els.canvas.addEventListener("pointermove", onPointerMove);
 els.canvas.addEventListener("pointerup", onPointerUp);
 els.canvas.addEventListener("pointerleave", onPointerUp);
+els.canvas.addEventListener("keydown", nudgeSelected);
+[
+  [els.elementX, "x"],
+  [els.elementY, "y"],
+  [els.elementW, "w"],
+  [els.elementH, "h"],
+  [els.elementFont, "font"],
+].forEach(([input, field]) => {
+  input.addEventListener("change", () => updateSelectedGeometry(field, Number(input.value)));
+  input.addEventListener("input", () => updateSelectedGeometry(field, Number(input.value)));
+});
 document.querySelector("#loadCsv").addEventListener("click", loadCsv);
 document.querySelector("#exportCurrent").addEventListener("click", exportCurrent);
 document.querySelector("#exportBatch").addEventListener("click", exportBatch);
