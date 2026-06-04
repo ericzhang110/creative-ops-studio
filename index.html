@@ -37,13 +37,18 @@
           <h2>语言</h2>
           <div class="language-grid" id="languageGrid"></div>
         </section>
+
+        <section class="panel">
+          <button class="wide ai-layout-button" id="generateLayouts" type="button">AI 智能布局</button>
+          <div class="layout-options" id="layoutOptions"></div>
+        </section>
       </aside>
 
       <section class="workspace">
         <header class="topbar">
           <div>
             <h1 id="modeTitle">多语言 Banner 生成器</h1>
-            <p id="modeMeta">CSV 文案、核心尺寸、批量预览、PNG 导出</p>
+            <p id="modeMeta">固定文案、模板复用、智能布局、PNG 导出</p>
           </div>
           <div class="actions">
             <button class="ghost" id="fitButton" type="button" title="适配预览">⛶</button>
@@ -132,12 +137,24 @@
             上传图片素材
             <input id="imageUploadInput" type="file" accept="image/*" />
           </label>
-          <div class="asset-library" id="assetLibrary"></div>
-          <div class="tool-grid">
-            <button class="wide" data-add-element="text" type="button">添加文本框</button>
-            <button class="wide" data-add-element="cta" type="button">添加按钮</button>
-            <button class="wide" data-add-element="metric" type="button">添加数据</button>
-            <button class="wide" data-add-element="product" type="button">添加产品视觉</button>
+          <label>
+            选择要素
+            <select id="elementTypeSelect">
+              <option value="text">文本框</option>
+              <option value="cta">按钮</option>
+              <option value="metric">数据模块</option>
+              <option value="product">产品视觉</option>
+            </select>
+          </label>
+          <button class="wide" id="addSelectedElement" type="button">添加选中要素</button>
+          <label>
+            素材库
+            <select id="assetSelect"></select>
+          </label>
+          <div class="asset-actions">
+            <button type="button" id="insertSelectedAsset">添加进画板</button>
+            <button type="button" id="setSelectedLogo">设为 Logo</button>
+            <button type="button" id="deleteSelectedAsset">删除素材</button>
           </div>
         </section>
 

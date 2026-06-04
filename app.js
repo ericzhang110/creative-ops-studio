@@ -213,6 +213,8 @@ const state = {
   textEdit: null,
   history: [],
   future: [],
+  layoutOptions: [],
+  activeLayoutOption: "",
   lastTemplateMessage: "",
   sourceCopy: JSON.parse(localStorage.getItem("creativeOpsSourceCopy") || "null"),
   autoTranslate: JSON.parse(localStorage.getItem("creativeOpsAutoTranslate") || "true"),
@@ -247,7 +249,14 @@ const els = {
   stageWrap: document.querySelector("#stageWrap"),
   textEditor: document.querySelector("#canvasTextEditor"),
   imageUpload: document.querySelector("#imageUploadInput"),
-  assetLibrary: document.querySelector("#assetLibrary"),
+  elementType: document.querySelector("#elementTypeSelect"),
+  addSelectedElement: document.querySelector("#addSelectedElement"),
+  assetSelect: document.querySelector("#assetSelect"),
+  insertSelectedAsset: document.querySelector("#insertSelectedAsset"),
+  setSelectedLogo: document.querySelector("#setSelectedLogo"),
+  deleteSelectedAsset: document.querySelector("#deleteSelectedAsset"),
+  generateLayouts: document.querySelector("#generateLayouts"),
+  layoutOptions: document.querySelector("#layoutOptions"),
   deleteElement: document.querySelector("#deleteElement"),
   templateName: document.querySelector("#templateNameInput"),
   templateSelect: document.querySelector("#templateSelect"),
@@ -290,6 +299,7 @@ function historySnapshot() {
     elements: clone(state.elements),
     sourceCopy: clone(state.sourceCopy),
     activeTemplateId: state.activeTemplateId,
+    activeLayoutOption: state.activeLayoutOption,
     copyByLanguage: clone(copyByLanguage),
   };
 }
@@ -310,6 +320,7 @@ function restoreSnapshot(snapshot) {
     elements: clone(snapshot.elements),
     sourceCopy: clone(snapshot.sourceCopy),
     activeTemplateId: snapshot.activeTemplateId,
+    activeLayoutOption: snapshot.activeLayoutOption,
   });
   Object.keys(copyByLanguage).forEach((key) => delete copyByLanguage[key]);
   Object.assign(copyByLanguage, clone(snapshot.copyByLanguage));
@@ -631,9 +642,13 @@ function placeElement(el, x, y, w, h, width, height) {
   fitElement(el, width, height);
 }
 
-function optimizeSmartLayout(elements, width, height) {
+function optimizeSmartLayout(elements, width, height, variant = "balanced") {
   const ratio = width / height;
   const pad = Math.max(14, Math.min(width, height) * 0.07);
+  const textBoost = variant === "copy" ? 1.16 : variant === "visual" ? 0.9 : 1;
+  const visualBoost = variant === "visual" ? 1.18 : variant === "copy" ? 0.88 : 1;
+  const ctaBoost = variant === "conversion" ? 1.22 : 1;
+  const split = variant === "visual" ? 0.43 : variant === "copy" ? 0.56 : 0.5;
   const logo = elements.find((el) => el.type === "logo");
   const headline = elements.find((el) => el.type === "text" && el.role === "headline");
   const subhead = elements.find((el) => el.type === "text" && el.role === "subhead");
@@ -646,39 +661,39 @@ function optimizeSmartLayout(elements, width, height) {
   if (card) placeElement(card, pad * 0.75, pad * 0.75, width - pad * 1.5, height - pad * 1.5, width, height);
 
   if (ratio >= 2.2) {
-    const textW = width * 0.48;
+    const textW = width * Math.min(0.58, 0.48 * textBoost);
     if (logo) placeElement(logo, pad, pad * 0.75, Math.min(width * 0.18, 170), Math.max(26, height * 0.15), width, height);
-    if (headline) placeElement(headline, pad, height * 0.26, textW, height * 0.28, width, height);
+    if (headline) placeElement(headline, pad, height * 0.24, textW, height * 0.3, width, height);
     if (subhead) placeElement(subhead, pad, height * 0.58, textW * 0.9, height * 0.15, width, height);
-    if (cta) placeElement(cta, pad, height - pad - Math.max(32, height * 0.15), Math.min(width * 0.22, 180), Math.max(32, height * 0.15), width, height);
+    if (cta) placeElement(cta, pad, height - pad - Math.max(32, height * 0.15 * ctaBoost), Math.min(width * 0.24 * ctaBoost, 220), Math.max(32, height * 0.15 * ctaBoost), width, height);
     visuals.forEach((el, index) => {
-      const visualW = width * (visuals.length > 1 ? 0.16 : 0.23);
+      const visualW = width * (visuals.length > 1 ? 0.16 : 0.23) * visualBoost;
       const gap = width * 0.025;
       placeElement(el, width - pad - visualW - index * (visualW + gap), height * 0.18, visualW, height * 0.62, width, height);
     });
     if (metric) placeElement(metric, width * 0.52, height * 0.62, width * 0.18, height * 0.18, width, height);
   } else if (ratio <= 0.72) {
     if (logo) placeElement(logo, pad, pad, Math.min(width * 0.42, 180), Math.max(34, height * 0.05), width, height);
-    if (headline) placeElement(headline, pad, height * 0.13, width - pad * 2, height * 0.16, width, height);
-    if (subhead) placeElement(subhead, pad, height * 0.31, width - pad * 2, height * 0.1, width, height);
+    if (headline) placeElement(headline, pad, height * 0.12, width - pad * 2, height * 0.16 * textBoost, width, height);
+    if (subhead) placeElement(subhead, pad, height * (variant === "visual" ? 0.28 : 0.31), width - pad * 2, height * 0.1 * textBoost, width, height);
     visuals.forEach((el, index) => {
-      const visualH = height * (visuals.length > 1 ? 0.26 : 0.34);
-      const visualW = width * (visuals.length > 1 ? 0.42 : 0.62);
+      const visualH = height * (visuals.length > 1 ? 0.26 : 0.34) * visualBoost;
+      const visualW = width * (visuals.length > 1 ? 0.42 : 0.62) * visualBoost;
       const x = visuals.length > 1 ? pad + index * (visualW + pad * 0.5) : (width - visualW) / 2;
-      placeElement(el, x, height * 0.46, visualW, visualH, width, height);
+      placeElement(el, x, height * (variant === "visual" ? 0.42 : 0.46), visualW, visualH, width, height);
     });
     if (metric) placeElement(metric, pad, height * 0.76, width * 0.42, height * 0.09, width, height);
-    if (cta) placeElement(cta, pad, height - pad - Math.max(44, height * 0.055), width - pad * 2, Math.max(44, height * 0.055), width, height);
+    if (cta) placeElement(cta, pad, height - pad - Math.max(44, height * 0.055 * ctaBoost), width - pad * 2, Math.max(44, height * 0.055 * ctaBoost), width, height);
   } else {
     if (logo) placeElement(logo, pad, pad, Math.min(width * 0.28, 180), Math.max(34, height * 0.055), width, height);
-    if (headline) placeElement(headline, pad, height * 0.16, width * 0.52, height * 0.22, width, height);
-    if (subhead) placeElement(subhead, pad, height * 0.4, width * 0.48, height * 0.12, width, height);
+    if (headline) placeElement(headline, pad, height * 0.16, width * split * textBoost, height * 0.22, width, height);
+    if (subhead) placeElement(subhead, pad, height * 0.4, width * Math.min(0.56, split * textBoost), height * 0.12, width, height);
     visuals.forEach((el, index) => {
-      const visualW = width * (visuals.length > 1 ? 0.28 : 0.36);
+      const visualW = width * (visuals.length > 1 ? 0.28 : 0.36) * visualBoost;
       placeElement(el, width - pad - visualW, height * (0.28 + index * 0.2), visualW, height * 0.42, width, height);
     });
     if (metric) placeElement(metric, pad, height * 0.68, width * 0.28, height * 0.1, width, height);
-    if (cta) placeElement(cta, pad, height - pad - Math.max(48, height * 0.07), Math.min(width * 0.34, 220), Math.max(44, height * 0.07), width, height);
+    if (cta) placeElement(cta, pad, height - pad - Math.max(48, height * 0.07 * ctaBoost), Math.min(width * 0.34 * ctaBoost, 260), Math.max(44, height * 0.07 * ctaBoost), width, height);
   }
 
   customTexts.forEach((el, index) => {
@@ -707,6 +722,50 @@ function adaptTemplate(template, width, height) {
   const optimized = optimizeSmartLayout(elements, width, height);
   hydrateImages(optimized);
   return optimized;
+}
+
+const layoutVariantLabels = {
+  balanced: "均衡布局",
+  copy: "文案优先",
+  visual: "视觉优先",
+  conversion: "转化按钮优先",
+};
+
+function generateSmartLayoutOptions() {
+  const [, width, height] = activePreset();
+  const baseElements = clone(state.elements.length ? state.elements : defaultElements(state.mode, width, height));
+  state.layoutOptions = Object.keys(layoutVariantLabels).map((variant) => ({
+    id: variant,
+    name: layoutVariantLabels[variant],
+    elements: optimizeSmartLayout(clone(baseElements), width, height, variant),
+  }));
+  state.lastTemplateMessage = "已生成 4 套 AI 智能布局方案";
+  renderLayoutOptions();
+  updateSelectedLabel();
+}
+
+function applyLayoutOption(id) {
+  const option = state.layoutOptions.find((item) => item.id === id);
+  if (!option) return;
+  pushHistory();
+  state.elements = clone(option.elements);
+  state.selectedId = null;
+  state.activeLayoutOption = id;
+  state.lastTemplateMessage = `已应用：${option.name}`;
+  hydrateImages();
+  render();
+}
+
+function renderLayoutOptions() {
+  els.layoutOptions.innerHTML = "";
+  state.layoutOptions.forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `layout-option${option.id === state.activeLayoutOption ? " is-active" : ""}`;
+    button.textContent = option.name;
+    button.addEventListener("click", () => applyLayoutOption(option.id));
+    els.layoutOptions.append(button);
+  });
 }
 
 function hydrateImages(elements = state.elements) {
@@ -880,49 +939,45 @@ function setLogoAsset(asset) {
   renderCanvas();
 }
 
-function renderAssetLibrary() {
-  els.assetLibrary.innerHTML = "";
+function selectedAsset() {
+  return state.assetLibrary.find((asset) => asset.id === els.assetSelect.value) || null;
+}
+
+function deleteAsset(asset) {
+  if (!asset) return;
+  pushHistory();
+  state.assetLibrary = state.assetLibrary.filter((item) => item.id !== asset.id);
+  state.elements = state.elements.filter((el) => el.assetId !== asset.id && el.src !== asset.src);
+  Object.keys(state.imageCache).forEach((key) => {
+    const el = state.elements.find((item) => item.id === key);
+    if (!el) delete state.imageCache[key];
+  });
+  persistAssetLibrary();
+  state.selectedId = null;
+  state.lastTemplateMessage = `已删除素材：${asset.name}`;
+  render();
+}
+
+function renderAssetSelect() {
+  els.assetSelect.innerHTML = "";
   if (!state.assetLibrary.length) {
-    const empty = document.createElement("div");
-    empty.className = "asset-empty";
-    empty.textContent = "上传 Logo、产品图或其他素材后，可从这里插入画布或设为 Logo。";
-    els.assetLibrary.append(empty);
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "暂无素材，请先上传";
+    els.assetSelect.append(option);
+    [els.insertSelectedAsset, els.setSelectedLogo, els.deleteSelectedAsset].forEach((button) => {
+      button.disabled = true;
+    });
     return;
   }
+  [els.insertSelectedAsset, els.setSelectedLogo, els.deleteSelectedAsset].forEach((button) => {
+    button.disabled = false;
+  });
   state.assetLibrary.forEach((asset) => {
-    const item = document.createElement("div");
-    item.className = "asset-item";
-    item.draggable = true;
-    item.addEventListener("dragstart", (event) => {
-      event.dataTransfer.setData("text/plain", asset.id);
-      event.dataTransfer.effectAllowed = "copy";
-    });
-
-    const img = document.createElement("img");
-    img.className = "asset-thumb";
-    img.src = asset.src;
-    img.alt = asset.name;
-
-    const meta = document.createElement("div");
-    meta.className = "asset-meta";
-    const name = document.createElement("div");
-    name.className = "asset-name";
-    name.textContent = asset.name;
-
-    const actions = document.createElement("div");
-    actions.className = "asset-actions";
-    const insert = document.createElement("button");
-    insert.type = "button";
-    insert.textContent = "插入";
-    insert.addEventListener("click", () => insertAssetAsImage(asset));
-    const logo = document.createElement("button");
-    logo.type = "button";
-    logo.textContent = "设为 Logo";
-    logo.addEventListener("click", () => setLogoAsset(asset));
-    actions.append(insert, logo);
-    meta.append(name, actions);
-    item.append(img, meta);
-    els.assetLibrary.append(item);
+    const option = document.createElement("option");
+    option.value = asset.id;
+    option.textContent = asset.name;
+    els.assetSelect.append(option);
   });
 }
 
@@ -1161,7 +1216,7 @@ function renderMeta() {
   const assetTotal = presets[state.mode].length * Object.keys(copyByLanguage).length;
   els.assetCount.textContent = assetTotal;
   els.selectedSpec.textContent = `${width} x ${height}`;
-  els.activeLanguage.textContent = state.language;
+  els.activeLanguage.textContent = languageLabels[state.language] || state.language;
   els.modeTitle.textContent = state.mode === "banner" ? "多语言 Banner 生成器" : "社媒模板工具";
   els.modeMeta.textContent =
     state.mode === "banner"
@@ -1207,7 +1262,8 @@ function render() {
   renderPresetList();
   renderLanguages();
   renderTemplateSelect();
-  renderAssetLibrary();
+  renderAssetSelect();
+  renderLayoutOptions();
   renderCanvas();
   renderMeta();
 }
@@ -1450,7 +1506,7 @@ function handleImageUpload(event) {
     state.assetLibrary.unshift(asset);
     persistAssetLibrary();
     insertAssetAsImage(asset);
-    renderAssetLibrary();
+    renderAssetSelect();
     state.lastTemplateMessage = `已上传并插入素材：${file.name}`;
     updateSelectedLabel();
     event.target.value = "";
@@ -1648,9 +1704,17 @@ els.templateSelect.addEventListener("change", () => {
   if (!template) return;
   applyTemplateById(template.id);
 });
-document.querySelectorAll("[data-add-element]").forEach((button) => {
-  button.addEventListener("click", () => addElement(button.dataset.addElement));
+els.generateLayouts.addEventListener("click", generateSmartLayoutOptions);
+els.addSelectedElement.addEventListener("click", () => addElement(els.elementType.value));
+els.insertSelectedAsset.addEventListener("click", () => {
+  const asset = selectedAsset();
+  if (asset) insertAssetAsImage(asset);
 });
+els.setSelectedLogo.addEventListener("click", () => {
+  const asset = selectedAsset();
+  if (asset) setLogoAsset(asset);
+});
+els.deleteSelectedAsset.addEventListener("click", () => deleteAsset(selectedAsset()));
 [
   [els.elementX, "x"],
   [els.elementY, "y"],
