@@ -33,18 +33,18 @@ const copyByLanguage = {
 };
 
 const languageLabels = {
-  EN: "English",
+  EN: "英语",
   ZH: "中文",
-  JA: "日本語",
-  KO: "한국어",
-  DE: "Deutsch",
-  FR: "Français",
-  ES: "Español",
-  PT: "Português",
-  RU: "Русский",
-  AR: "العربية",
-  TH: "ไทย",
-  VI: "Tiếng Việt",
+  JA: "日语",
+  KO: "韩语",
+  DE: "德语",
+  FR: "法语",
+  ES: "西语",
+  PT: "葡语",
+  RU: "俄语",
+  AR: "阿语",
+  TH: "泰语",
+  VI: "越语",
 };
 
 const exactTranslations = {
@@ -148,7 +148,6 @@ const els = {
   headline: document.querySelector("#headlineInput"),
   subhead: document.querySelector("#subheadInput"),
   cta: document.querySelector("#ctaInput"),
-  csv: document.querySelector("#csvInput"),
   modeTitle: document.querySelector("#modeTitle"),
   modeMeta: document.querySelector("#modeMeta"),
   assetCount: document.querySelector("#assetCount"),
@@ -704,7 +703,7 @@ function renderLanguages() {
     const button = document.createElement("button");
     button.className = `language${code === state.language ? " is-active" : ""}`;
     button.type = "button";
-    button.textContent = code;
+    button.textContent = languageLabels[code] || code;
     button.addEventListener("click", () => {
       persistCurrentCopyToLanguage();
       state.language = code;
@@ -724,9 +723,6 @@ function syncInputs() {
   els.background.value = state.background;
   els.showMetrics.checked = state.showMetrics;
   els.autoTranslate.checked = state.autoTranslate;
-  els.csv.value = Object.entries(copyByLanguage)
-    .map(([lang, row]) => [lang, ...row].join(","))
-    .join("\n");
 }
 
 function roundRect(x, y, width, height, radius) {
@@ -1280,20 +1276,6 @@ function exportBatch() {
   render();
 }
 
-function loadCsv() {
-  els.csv.value
-    .split(/\n+/)
-    .map((row) => row.trim())
-    .filter(Boolean)
-    .forEach((row) => {
-      const [lang, headline, subhead, cta] = row.split(",").map((item) => item.trim());
-      if (lang && headline) copyByLanguage[lang.toUpperCase()] = [headline, subhead || "", cta || state.cta];
-    });
-  if (copyByLanguage[state.language]) applyCopyForLanguage(state.language);
-  syncInputs();
-  render();
-}
-
 document.querySelectorAll(".mode-tab").forEach((button) => {
   button.addEventListener("click", () => {
     persistCurrentCopyToLanguage();
@@ -1397,7 +1379,6 @@ document.querySelectorAll("[data-add-element]").forEach((button) => {
   input.addEventListener("change", () => updateSelectedGeometry(field, Number(input.value)));
   input.addEventListener("input", () => updateSelectedGeometry(field, Number(input.value)));
 });
-document.querySelector("#loadCsv").addEventListener("click", loadCsv);
 document.querySelector("#exportCurrent").addEventListener("click", exportCurrent);
 document.querySelector("#exportBatch").addEventListener("click", exportBatch);
 document.querySelector("#saveTemplate").addEventListener("click", () => saveTemplateToLibrary(false));
