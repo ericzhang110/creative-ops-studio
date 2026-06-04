@@ -110,6 +110,23 @@
         </section>
 
         <section class="panel">
+          <h2>模板库</h2>
+          <label>
+            模板名称
+            <input id="templateNameInput" type="text" value="Untitled template" />
+          </label>
+          <div class="tool-grid">
+            <button class="wide" id="saveAsTemplate" type="button">保存为新模板</button>
+            <button class="wide" id="updateTemplate" type="button">更新当前模板</button>
+          </div>
+          <label>
+            调用模板
+            <select id="templateSelect"></select>
+          </label>
+          <button class="wide" id="applyTemplate" type="button">应用选中模板</button>
+        </section>
+
+        <section class="panel">
           <h2>素材 / 新增要素</h2>
           <label class="file-control">
             上传图片素材
@@ -137,6 +154,11 @@
             按钮
             <input id="ctaInput" type="text" />
           </label>
+          <label class="check-row">
+            <input id="autoTranslateInput" type="checkbox" checked />
+            <span>切换语言时用固定文案自动翻译</span>
+          </label>
+          <button class="wide" id="lockCopy" type="button">固定当前文案</button>
         </section>
 
         <section class="panel">

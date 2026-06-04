@@ -32,6 +32,77 @@ const copyByLanguage = {
   VI: ["Vàng, Forex & Crypto trong một ứng dụng", "Giao dịch thị trường toàn cầu nhanh chóng", "Giao dịch"],
 };
 
+const languageLabels = {
+  EN: "English",
+  ZH: "中文",
+  JA: "日本語",
+  KO: "한국어",
+  DE: "Deutsch",
+  FR: "Français",
+  ES: "Español",
+  PT: "Português",
+  RU: "Русский",
+  AR: "العربية",
+  TH: "ไทย",
+  VI: "Tiếng Việt",
+};
+
+const exactTranslations = {
+  "Gold, Forex & Crypto in One App": {
+    ZH: "黄金、外汇与加密货币，一站交易",
+    JA: "金・FX・暗号資産をひとつのアプリで",
+    KO: "금, 외환, 크립토를 하나의 앱에서",
+    DE: "Gold, Forex & Krypto in einer App",
+    FR: "Or, Forex et Crypto dans une seule app",
+    ES: "Oro, Forex y Cripto en una App",
+    PT: "Ouro, Forex e Cripto em um App",
+    RU: "Золото, Форекс и крипто в одном приложении",
+    AR: "الذهب والفوركس والعملات الرقمية في تطبيق واحد",
+    TH: "ทองคำ ฟอเร็กซ์ และคริปโตในแอปเดียว",
+    VI: "Vàng, Forex & Crypto trong một ứng dụng",
+  },
+  "Trade global markets with fast execution": {
+    ZH: "一个 App 覆盖全球市场",
+    JA: "世界の市場へすばやくアクセス",
+    KO: "글로벌 시장을 빠르게 거래하세요",
+    DE: "Globale Märkte schnell handeln",
+    FR: "Accédez vite aux marchés mondiaux",
+    ES: "Opera mercados globales al instante",
+    PT: "Negocie mercados globais com rapidez",
+    RU: "Торгуйте на мировых рынках быстрее",
+    AR: "تداول الأسواق العالمية بسرعة",
+    TH: "เทรดตลาดโลกได้อย่างรวดเร็ว",
+    VI: "Giao dịch thị trường toàn cầu nhanh chóng",
+  },
+  "Trade Now": {
+    ZH: "立即交易",
+    JA: "今すぐ取引",
+    KO: "거래하기",
+    DE: "Jetzt traden",
+    FR: "Trader",
+    ES: "Opera ahora",
+    PT: "Negociar",
+    RU: "Торговать",
+    AR: "تداول الآن",
+    TH: "เทรดเลย",
+    VI: "Giao dịch",
+  },
+};
+
+const glossary = {
+  ZH: { Gold: "黄金", Forex: "外汇", Crypto: "加密货币", App: "App", Trade: "交易", Now: "立即", global: "全球", markets: "市场", fast: "快速", execution: "执行" },
+  JA: { Gold: "金", Forex: "FX", Crypto: "暗号資産", App: "アプリ", Trade: "取引", Now: "今すぐ", global: "世界", markets: "市場", fast: "すばやい", execution: "実行" },
+  KO: { Gold: "금", Forex: "외환", Crypto: "크립토", App: "앱", Trade: "거래", Now: "지금", global: "글로벌", markets: "시장", fast: "빠른", execution: "실행" },
+  DE: { Gold: "Gold", Forex: "Forex", Crypto: "Krypto", App: "App", Trade: "Traden", Now: "Jetzt", global: "globale", markets: "Märkte", fast: "schnelle", execution: "Ausführung" },
+  FR: { Gold: "Or", Forex: "Forex", Crypto: "Crypto", App: "app", Trade: "Trader", Now: "maintenant", global: "mondiaux", markets: "marchés", fast: "rapide", execution: "exécution" },
+  ES: { Gold: "Oro", Forex: "Forex", Crypto: "Cripto", App: "App", Trade: "Opera", Now: "ahora", global: "globales", markets: "mercados", fast: "rápida", execution: "ejecución" },
+  PT: { Gold: "Ouro", Forex: "Forex", Crypto: "Cripto", App: "App", Trade: "Negociar", Now: "agora", global: "globais", markets: "mercados", fast: "rápida", execution: "execução" },
+  RU: { Gold: "Золото", Forex: "Форекс", Crypto: "крипто", App: "приложение", Trade: "Торговать", Now: "сейчас", global: "мировые", markets: "рынки", fast: "быстрое", execution: "исполнение" },
+  AR: { Gold: "الذهب", Forex: "الفوركس", Crypto: "العملات الرقمية", App: "تطبيق", Trade: "تداول", Now: "الآن", global: "العالمية", markets: "الأسواق", fast: "سريع", execution: "تنفيذ" },
+  TH: { Gold: "ทองคำ", Forex: "ฟอเร็กซ์", Crypto: "คริปโต", App: "แอป", Trade: "เทรด", Now: "ตอนนี้", global: "ทั่วโลก", markets: "ตลาด", fast: "รวดเร็ว", execution: "การดำเนินการ" },
+  VI: { Gold: "Vàng", Forex: "Forex", Crypto: "Crypto", App: "ứng dụng", Trade: "Giao dịch", Now: "ngay", global: "toàn cầu", markets: "thị trường", fast: "nhanh", execution: "khớp lệnh" },
+};
+
 const elementNames = {
   logo: "品牌标识",
   headline: "标题文本框",
@@ -61,6 +132,10 @@ const state = {
   elementCounter: 0,
   drag: null,
   lastTemplateMessage: "",
+  sourceCopy: JSON.parse(localStorage.getItem("creativeOpsSourceCopy") || "null"),
+  autoTranslate: JSON.parse(localStorage.getItem("creativeOpsAutoTranslate") || "true"),
+  templateLibrary: JSON.parse(localStorage.getItem("creativeOpsTemplateLibrary") || "[]"),
+  activeTemplateId: localStorage.getItem("creativeOpsActiveTemplateId") || "",
   savedTemplates: JSON.parse(localStorage.getItem("creativeOpsTemplates") || "{}"),
 };
 
@@ -90,6 +165,13 @@ const els = {
   selectedContent: document.querySelector("#selectedContentInput"),
   imageUpload: document.querySelector("#imageUploadInput"),
   deleteElement: document.querySelector("#deleteElement"),
+  templateName: document.querySelector("#templateNameInput"),
+  templateSelect: document.querySelector("#templateSelect"),
+  saveAsTemplate: document.querySelector("#saveAsTemplate"),
+  updateTemplate: document.querySelector("#updateTemplate"),
+  applyTemplate: document.querySelector("#applyTemplate"),
+  lockCopy: document.querySelector("#lockCopy"),
+  autoTranslate: document.querySelector("#autoTranslateInput"),
 };
 
 const ctx = els.canvas.getContext("2d");
@@ -113,6 +195,183 @@ function selectedElement() {
 function nextElementId(prefix) {
   state.elementCounter += 1;
   return `${prefix}-${Date.now().toString(36)}-${state.elementCounter}`;
+}
+
+function sourceCopyValues() {
+  return {
+    language: state.language,
+    headline: state.headline,
+    subhead: state.subhead,
+    cta: state.cta,
+  };
+}
+
+function persistCurrentCopyToLanguage() {
+  copyByLanguage[state.language] = [state.headline, state.subhead, state.cta];
+}
+
+function autoTranslateText(text, targetLang) {
+  if (!text) return text;
+  const reverseMatch = Object.entries(exactTranslations).find(([, translations]) => (
+    Object.values(translations).includes(text)
+  ));
+  if (reverseMatch) {
+    const [english, translations] = reverseMatch;
+    return targetLang === "EN" ? english : translations[targetLang] || english;
+  }
+  if (targetLang === "EN") return text;
+  const exact = exactTranslations[text]?.[targetLang];
+  if (exact) return exact;
+  const terms = glossary[targetLang] || {};
+  let translated = text;
+  Object.entries(terms).forEach(([from, to]) => {
+    translated = translated.replace(new RegExp(`\\b${from}\\b`, "gi"), to);
+  });
+  if (translated !== text) return translated;
+  return `${text} · ${languageLabels[targetLang] || targetLang}`;
+}
+
+function translatedCopyFor(targetLang) {
+  const source = state.sourceCopy || sourceCopyValues();
+  if (targetLang === source.language) return [source.headline, source.subhead, source.cta];
+  return [
+    autoTranslateText(source.headline, targetLang),
+    autoTranslateText(source.subhead, targetLang),
+    autoTranslateText(source.cta, targetLang),
+  ];
+}
+
+function lockCurrentCopy() {
+  persistCurrentCopyToLanguage();
+  state.sourceCopy = sourceCopyValues();
+  localStorage.setItem("creativeOpsSourceCopy", JSON.stringify(state.sourceCopy));
+  Object.keys(copyByLanguage).forEach((lang) => {
+    copyByLanguage[lang] = translatedCopyFor(lang);
+  });
+  state.lastTemplateMessage = `已固定 ${state.language} 文案为翻译源`;
+  syncInputs();
+  renderCanvas();
+}
+
+function applyCopyForLanguage(lang) {
+  if (state.autoTranslate && state.sourceCopy) {
+    copyByLanguage[lang] = translatedCopyFor(lang);
+  }
+  const [headline, subhead, cta] = copyByLanguage[lang] || translatedCopyFor(lang);
+  Object.assign(state, { headline, subhead, cta });
+}
+
+function persistTemplateLibrary() {
+  localStorage.setItem("creativeOpsTemplateLibrary", JSON.stringify(state.templateLibrary));
+  localStorage.setItem("creativeOpsActiveTemplateId", state.activeTemplateId || "");
+}
+
+function activeLibraryTemplate() {
+  return state.templateLibrary.find((template) => (
+    template.id === state.activeTemplateId && template.mode === state.mode
+  )) || null;
+}
+
+function buildTemplatePayload(name, id = nextElementId("template")) {
+  const [, width, height] = activePreset();
+  return {
+    id,
+    name: name || "Untitled template",
+    mode: state.mode,
+    width,
+    height,
+    language: state.language,
+    sourceCopy: clone(state.sourceCopy || sourceCopyValues()),
+    copyByLanguage: clone(copyByLanguage),
+    elements: clone(state.elements),
+    style: {
+      accent: state.accent,
+      background: state.background,
+      showMetrics: state.showMetrics,
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function renderTemplateSelect() {
+  els.templateSelect.innerHTML = "";
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = "选择已保存模板";
+  els.templateSelect.append(empty);
+  state.templateLibrary
+    .filter((template) => template.mode === state.mode)
+    .forEach((template) => {
+      const option = document.createElement("option");
+      option.value = template.id;
+      option.textContent = `${template.name} · ${Math.round(template.width)}x${Math.round(template.height)}`;
+      els.templateSelect.append(option);
+    });
+  els.templateSelect.value = state.activeTemplateId || "";
+}
+
+function saveTemplateToLibrary(asNew = false) {
+  persistCurrentCopyToLanguage();
+  const name = els.templateName.value.trim() || "Untitled template";
+  const activeTemplate = state.templateLibrary.find((template) => template.id === state.activeTemplateId);
+  const existingId = !asNew && activeTemplate?.mode === state.mode ? activeTemplate.id : "";
+  const id = existingId || nextElementId("template");
+  const payload = buildTemplatePayload(name, id);
+  const index = state.templateLibrary.findIndex((template) => template.id === id);
+  if (index >= 0) state.templateLibrary[index] = payload;
+  else state.templateLibrary.unshift(payload);
+  state.activeTemplateId = id;
+  state.savedTemplates[state.mode] = {
+    width: payload.width,
+    height: payload.height,
+    elements: clone(payload.elements),
+    style: clone(payload.style),
+  };
+  localStorage.setItem("creativeOpsTemplates", JSON.stringify(state.savedTemplates));
+  persistTemplateLibrary();
+  renderTemplateSelect();
+  state.lastTemplateMessage = `已保存模板：${payload.name}`;
+  updateSelectedLabel();
+}
+
+function applyTemplateById(id) {
+  const template = state.templateLibrary.find((item) => item.id === id);
+  if (!template) return;
+  state.mode = template.mode;
+  state.activeTemplateId = template.id;
+  state.sourceCopy = clone(template.sourceCopy || null);
+  localStorage.setItem("creativeOpsSourceCopy", JSON.stringify(state.sourceCopy));
+  Object.assign(copyByLanguage, clone(template.copyByLanguage || {}));
+  Object.assign(state, {
+    accent: template.style?.accent || state.accent,
+    background: template.style?.background || state.background,
+    showMetrics: template.style?.showMetrics ?? state.showMetrics,
+  });
+  const [, width, height] = activePreset();
+  state.elements = adaptTemplate(template, width, height);
+  state.savedTemplates[state.mode] = {
+    width: template.width,
+    height: template.height,
+    elements: clone(template.elements),
+    style: clone(template.style),
+  };
+  localStorage.setItem("creativeOpsTemplates", JSON.stringify(state.savedTemplates));
+  state.selectedId = null;
+  applyCopyForLanguage(state.language);
+  els.templateName.value = template.name;
+  document.documentElement.style.setProperty("--accent", state.accent);
+  persistTemplateLibrary();
+  syncModeTabs();
+  syncInputs();
+  render();
+  state.lastTemplateMessage = `已调用模板：${template.name}`;
+  updateSelectedLabel();
+}
+
+function syncModeTabs() {
+  document.querySelectorAll(".mode-tab").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.mode === state.mode);
+  });
 }
 
 function defaultElements(mode, width, height) {
@@ -182,6 +441,8 @@ function hydrateImages(elements = state.elements) {
 }
 
 function templateDescription(template) {
+  const active = activeLibraryTemplate();
+  if (active) return `当前模板：${active.name} · 基准 ${Math.round(active.width)} x ${Math.round(active.height)}`;
   return template ? `模板基准 ${Math.round(template.width)} x ${Math.round(template.height)}` : "未保存模板";
 }
 
@@ -199,7 +460,7 @@ function ensureLayout() {
 
 function applyTemplateForCurrentSize() {
   const [, width, height] = activePreset();
-  const saved = state.savedTemplates[state.mode];
+  const saved = activeLibraryTemplate() || state.savedTemplates[state.mode];
   state.elements = saved ? adaptTemplate(saved, width, height) : defaultElements(state.mode, width, height);
   state.selectedId = null;
   state.lastTemplateMessage = saved
@@ -319,9 +580,9 @@ function renderLanguages() {
     button.type = "button";
     button.textContent = code;
     button.addEventListener("click", () => {
+      persistCurrentCopyToLanguage();
       state.language = code;
-      const [headline, subhead, cta] = copyByLanguage[code];
-      Object.assign(state, { headline, subhead, cta });
+      applyCopyForLanguage(code);
       syncInputs();
       renderCanvas();
     });
@@ -336,6 +597,7 @@ function syncInputs() {
   els.accent.value = state.accent;
   els.background.value = state.background;
   els.showMetrics.checked = state.showMetrics;
+  els.autoTranslate.checked = state.autoTranslate;
   els.csv.value = Object.entries(copyByLanguage)
     .map(([lang, row]) => [lang, ...row].join(","))
     .join("\n");
@@ -565,6 +827,7 @@ function syncGeometryInputs(el) {
 function render() {
   renderPresetList();
   renderLanguages();
+  renderTemplateSelect();
   renderCanvas();
   renderMeta();
 }
@@ -812,7 +1075,7 @@ function exportBatch() {
     presets[state.mode].forEach(([, ,], index) => {
       state.language = lang;
       state.presetIndex = index;
-      [state.headline, state.subhead, state.cta] = copyByLanguage[lang];
+      applyCopyForLanguage(lang);
       applyTemplateForCurrentSize();
       renderCanvas({ guides: false });
       exportCurrent();
@@ -836,17 +1099,19 @@ function loadCsv() {
       const [lang, headline, subhead, cta] = row.split(",").map((item) => item.trim());
       if (lang && headline) copyByLanguage[lang.toUpperCase()] = [headline, subhead || "", cta || state.cta];
     });
-  if (copyByLanguage[state.language]) [state.headline, state.subhead, state.cta] = copyByLanguage[state.language];
+  if (copyByLanguage[state.language]) applyCopyForLanguage(state.language);
   syncInputs();
   render();
 }
 
 document.querySelectorAll(".mode-tab").forEach((button) => {
   button.addEventListener("click", () => {
-    document.querySelectorAll(".mode-tab").forEach((item) => item.classList.remove("is-active"));
-    button.classList.add("is-active");
+    persistCurrentCopyToLanguage();
     state.mode = button.dataset.mode;
     state.presetIndex = 0;
+    state.activeTemplateId = "";
+    syncModeTabs();
+    persistTemplateLibrary();
     applyTemplateForCurrentSize();
     render();
   });
@@ -854,14 +1119,17 @@ document.querySelectorAll(".mode-tab").forEach((button) => {
 
 els.headline.addEventListener("input", () => {
   state.headline = els.headline.value;
+  persistCurrentCopyToLanguage();
   renderCanvas();
 });
 els.subhead.addEventListener("input", () => {
   state.subhead = els.subhead.value;
+  persistCurrentCopyToLanguage();
   renderCanvas();
 });
 els.cta.addEventListener("input", () => {
   state.cta = els.cta.value;
+  persistCurrentCopyToLanguage();
   renderCanvas();
 });
 els.accent.addEventListener("input", () => {
@@ -886,6 +1154,32 @@ els.canvas.addEventListener("keydown", nudgeSelected);
 els.imageUpload.addEventListener("change", handleImageUpload);
 els.deleteElement.addEventListener("click", deleteSelectedElement);
 els.selectedContent.addEventListener("input", () => updateSelectedContent(els.selectedContent.value));
+els.lockCopy.addEventListener("click", lockCurrentCopy);
+els.autoTranslate.addEventListener("change", () => {
+  state.autoTranslate = els.autoTranslate.checked;
+  localStorage.setItem("creativeOpsAutoTranslate", JSON.stringify(state.autoTranslate));
+  if (state.autoTranslate && !state.sourceCopy) {
+    lockCurrentCopy();
+    return;
+  }
+  if (state.autoTranslate) {
+    applyCopyForLanguage(state.language);
+    syncInputs();
+    renderCanvas();
+  }
+});
+els.saveAsTemplate.addEventListener("click", () => saveTemplateToLibrary(true));
+els.updateTemplate.addEventListener("click", () => saveTemplateToLibrary(false));
+els.applyTemplate.addEventListener("click", () => applyTemplateById(els.templateSelect.value));
+els.templateSelect.addEventListener("change", () => {
+  const template = state.templateLibrary.find((item) => item.id === els.templateSelect.value);
+  if (!template) return;
+  state.activeTemplateId = template.id;
+  els.templateName.value = template.name;
+  persistTemplateLibrary();
+  state.lastTemplateMessage = `已选择模板：${template.name}`;
+  updateSelectedLabel();
+});
 document.querySelectorAll("[data-add-element]").forEach((button) => {
   button.addEventListener("click", () => addElement(button.dataset.addElement));
 });
@@ -902,7 +1196,7 @@ document.querySelectorAll("[data-add-element]").forEach((button) => {
 document.querySelector("#loadCsv").addEventListener("click", loadCsv);
 document.querySelector("#exportCurrent").addEventListener("click", exportCurrent);
 document.querySelector("#exportBatch").addEventListener("click", exportBatch);
-document.querySelector("#saveTemplate").addEventListener("click", saveTemplate);
+document.querySelector("#saveTemplate").addEventListener("click", () => saveTemplateToLibrary(false));
 document.querySelector("#resetLayout").addEventListener("click", () => {
   const [, width, height] = activePreset();
   state.elements = defaultElements(state.mode, width, height);
@@ -915,6 +1209,10 @@ document.querySelector("#fitButton").addEventListener("click", () => {
   els.canvas.style.maxHeight = state.fit ? "calc(100vh - 188px)" : "none";
 });
 
+els.templateName.value = state.activeTemplateId
+  ? state.templateLibrary.find((template) => template.id === state.activeTemplateId)?.name || "Untitled template"
+  : "Untitled template";
+syncModeTabs();
 syncInputs();
 applyTemplateForCurrentSize();
 render();
