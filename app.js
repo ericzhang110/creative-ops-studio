@@ -87,6 +87,84 @@ const exactTranslations = {
     TH: "เทรดเลย",
     VI: "Giao dịch",
   },
+  "New text": {
+    ZH: "新增文本",
+    JA: "新しいテキスト",
+    KO: "새 텍스트",
+    DE: "Neuer Text",
+    FR: "Nouveau texte",
+    ES: "Texto nuevo",
+    PT: "Novo texto",
+    RU: "Новый текст",
+    AR: "نص جديد",
+    TH: "ข้อความใหม่",
+    VI: "Văn bản mới",
+  },
+  Button: {
+    ZH: "按钮",
+    JA: "ボタン",
+    KO: "버튼",
+    DE: "Button",
+    FR: "Bouton",
+    ES: "Botón",
+    PT: "Botão",
+    RU: "Кнопка",
+    AR: "زر",
+    TH: "ปุ่ม",
+    VI: "Nút",
+  },
+  "Learn More": {
+    ZH: "了解更多",
+    JA: "詳しく見る",
+    KO: "자세히 보기",
+    DE: "Mehr erfahren",
+    FR: "En savoir plus",
+    ES: "Más información",
+    PT: "Saiba mais",
+    RU: "Подробнее",
+    AR: "اعرف المزيد",
+    TH: "ดูเพิ่มเติม",
+    VI: "Tìm hiểu thêm",
+  },
+  "Sign Up": {
+    ZH: "立即注册",
+    JA: "登録する",
+    KO: "가입하기",
+    DE: "Registrieren",
+    FR: "S'inscrire",
+    ES: "Regístrate",
+    PT: "Cadastre-se",
+    RU: "Зарегистрироваться",
+    AR: "سجّل الآن",
+    TH: "สมัครเลย",
+    VI: "Đăng ký",
+  },
+  "Claim Offer": {
+    ZH: "领取优惠",
+    JA: "特典を受け取る",
+    KO: "혜택 받기",
+    DE: "Angebot sichern",
+    FR: "Profiter de l'offre",
+    ES: "Reclamar oferta",
+    PT: "Resgatar oferta",
+    RU: "Получить предложение",
+    AR: "احصل على العرض",
+    TH: "รับข้อเสนอ",
+    VI: "Nhận ưu đãi",
+  },
+  "Download App": {
+    ZH: "下载 App",
+    JA: "アプリをダウンロード",
+    KO: "앱 다운로드",
+    DE: "App herunterladen",
+    FR: "Télécharger l'app",
+    ES: "Descargar app",
+    PT: "Baixar app",
+    RU: "Скачать приложение",
+    AR: "حمّل التطبيق",
+    TH: "ดาวน์โหลดแอป",
+    VI: "Tải ứng dụng",
+  },
 };
 
 const glossary = {
@@ -133,6 +211,8 @@ const state = {
   elementCounter: 0,
   drag: null,
   textEdit: null,
+  history: [],
+  future: [],
   lastTemplateMessage: "",
   sourceCopy: JSON.parse(localStorage.getItem("creativeOpsSourceCopy") || "null"),
   autoTranslate: JSON.parse(localStorage.getItem("creativeOpsAutoTranslate") || "true"),
@@ -173,7 +253,6 @@ const els = {
   templateSelect: document.querySelector("#templateSelect"),
   saveAsTemplate: document.querySelector("#saveAsTemplate"),
   updateTemplate: document.querySelector("#updateTemplate"),
-  applyTemplate: document.querySelector("#applyTemplate"),
   lockCopy: document.querySelector("#lockCopy"),
   autoTranslate: document.querySelector("#autoTranslateInput"),
 };
@@ -194,6 +273,72 @@ function clamp(value, min, max) {
 
 function selectedElement() {
   return state.elements.find((item) => item.id === state.selectedId) || null;
+}
+
+function historySnapshot() {
+  return {
+    mode: state.mode,
+    presetIndex: state.presetIndex,
+    language: state.language,
+    headline: state.headline,
+    subhead: state.subhead,
+    cta: state.cta,
+    accent: state.accent,
+    background: state.background,
+    showMetrics: state.showMetrics,
+    selectedId: state.selectedId,
+    elements: clone(state.elements),
+    sourceCopy: clone(state.sourceCopy),
+    activeTemplateId: state.activeTemplateId,
+    copyByLanguage: clone(copyByLanguage),
+  };
+}
+
+function restoreSnapshot(snapshot) {
+  if (!snapshot) return;
+  Object.assign(state, {
+    mode: snapshot.mode,
+    presetIndex: snapshot.presetIndex,
+    language: snapshot.language,
+    headline: snapshot.headline,
+    subhead: snapshot.subhead,
+    cta: snapshot.cta,
+    accent: snapshot.accent,
+    background: snapshot.background,
+    showMetrics: snapshot.showMetrics,
+    selectedId: snapshot.selectedId,
+    elements: clone(snapshot.elements),
+    sourceCopy: clone(snapshot.sourceCopy),
+    activeTemplateId: snapshot.activeTemplateId,
+  });
+  Object.keys(copyByLanguage).forEach((key) => delete copyByLanguage[key]);
+  Object.assign(copyByLanguage, clone(snapshot.copyByLanguage));
+  state.imageCache = {};
+  hydrateImages();
+  document.documentElement.style.setProperty("--accent", state.accent);
+  syncModeTabs();
+  syncInputs();
+  render();
+}
+
+function pushHistory() {
+  state.history.push(historySnapshot());
+  if (state.history.length > 80) state.history.shift();
+  state.future = [];
+}
+
+function undo() {
+  const snapshot = state.history.pop();
+  if (!snapshot) return;
+  state.future.push(historySnapshot());
+  restoreSnapshot(snapshot);
+}
+
+function redo() {
+  const snapshot = state.future.pop();
+  if (!snapshot) return;
+  state.history.push(historySnapshot());
+  restoreSnapshot(snapshot);
 }
 
 function nextElementId(prefix) {
@@ -230,6 +375,7 @@ function setEditableTextValue(el, value) {
   else if (el.type === "text") el.text = value;
   else if (el.type === "cta" && el.label) el.label = value;
   else if (el.type === "cta") state.cta = value;
+  if (el.sourceLang === state.language) el.sourceText = value;
   persistCurrentCopyToLanguage();
   syncInputs();
 }
@@ -273,8 +419,37 @@ function translatedCopyFor(targetLang) {
   ];
 }
 
-function lockCurrentCopy() {
+function captureElementTextSources(sourceLang = state.language) {
+  state.elements.forEach((el) => {
+    if (!isTextEditable(el)) return;
+    el.sourceLang = sourceLang;
+    el.sourceText = editableTextValue(el);
+  });
+}
+
+function translateElementTexts(targetLang) {
+  state.elements.forEach((el) => {
+    if (!isTextEditable(el)) return;
+    const sourceText = el.sourceText || editableTextValue(el);
+    const sourceLang = el.sourceLang || state.sourceCopy?.language || "EN";
+    if (!el.sourceText) {
+      el.sourceText = sourceText;
+      el.sourceLang = sourceLang;
+    }
+    const nextText = targetLang === sourceLang ? sourceText : autoTranslateText(sourceText, targetLang);
+    if (el.type === "text" && el.role === "headline") state.headline = nextText;
+    else if (el.type === "text" && el.role === "subhead") state.subhead = nextText;
+    else if (el.type === "text") el.text = nextText;
+    else if (el.type === "cta" && el.label) el.label = nextText;
+    else if (el.type === "cta") state.cta = nextText;
+  });
   persistCurrentCopyToLanguage();
+}
+
+function lockCurrentCopy() {
+  pushHistory();
+  persistCurrentCopyToLanguage();
+  captureElementTextSources(state.language);
   state.sourceCopy = sourceCopyValues();
   localStorage.setItem("creativeOpsSourceCopy", JSON.stringify(state.sourceCopy));
   Object.keys(copyByLanguage).forEach((lang) => {
@@ -291,6 +466,7 @@ function applyCopyForLanguage(lang) {
   }
   const [headline, subhead, cta] = copyByLanguage[lang] || translatedCopyFor(lang);
   Object.assign(state, { headline, subhead, cta });
+  if (state.autoTranslate) translateElementTexts(lang);
 }
 
 function persistTemplateLibrary() {
@@ -345,6 +521,7 @@ function renderTemplateSelect() {
 
 function saveTemplateToLibrary(asNew = false) {
   persistCurrentCopyToLanguage();
+  captureElementTextSources(state.sourceCopy?.language || state.language);
   const name = els.templateName.value.trim() || "Untitled template";
   const activeTemplate = state.templateLibrary.find((template) => template.id === state.activeTemplateId);
   const existingId = !asNew && activeTemplate?.mode === state.mode ? activeTemplate.id : "";
@@ -370,6 +547,7 @@ function saveTemplateToLibrary(asNew = false) {
 function applyTemplateById(id) {
   const template = state.templateLibrary.find((item) => item.id === id);
   if (!template) return;
+  pushHistory();
   state.mode = template.mode;
   state.activeTemplateId = template.id;
   state.sourceCopy = clone(template.sourceCopy || null);
@@ -448,6 +626,70 @@ function fitElement(el, width, height) {
   }
 }
 
+function placeElement(el, x, y, w, h, width, height) {
+  Object.assign(el, { x, y, w, h });
+  fitElement(el, width, height);
+}
+
+function optimizeSmartLayout(elements, width, height) {
+  const ratio = width / height;
+  const pad = Math.max(14, Math.min(width, height) * 0.07);
+  const logo = elements.find((el) => el.type === "logo");
+  const headline = elements.find((el) => el.type === "text" && el.role === "headline");
+  const subhead = elements.find((el) => el.type === "text" && el.role === "subhead");
+  const cta = elements.find((el) => el.type === "cta");
+  const card = elements.find((el) => el.type === "card");
+  const metric = elements.find((el) => el.type === "metric");
+  const visuals = elements.filter((el) => el.type === "product" || el.type === "image");
+  const customTexts = elements.filter((el) => el.type === "text" && !["headline", "subhead"].includes(el.role));
+
+  if (card) placeElement(card, pad * 0.75, pad * 0.75, width - pad * 1.5, height - pad * 1.5, width, height);
+
+  if (ratio >= 2.2) {
+    const textW = width * 0.48;
+    if (logo) placeElement(logo, pad, pad * 0.75, Math.min(width * 0.18, 170), Math.max(26, height * 0.15), width, height);
+    if (headline) placeElement(headline, pad, height * 0.26, textW, height * 0.28, width, height);
+    if (subhead) placeElement(subhead, pad, height * 0.58, textW * 0.9, height * 0.15, width, height);
+    if (cta) placeElement(cta, pad, height - pad - Math.max(32, height * 0.15), Math.min(width * 0.22, 180), Math.max(32, height * 0.15), width, height);
+    visuals.forEach((el, index) => {
+      const visualW = width * (visuals.length > 1 ? 0.16 : 0.23);
+      const gap = width * 0.025;
+      placeElement(el, width - pad - visualW - index * (visualW + gap), height * 0.18, visualW, height * 0.62, width, height);
+    });
+    if (metric) placeElement(metric, width * 0.52, height * 0.62, width * 0.18, height * 0.18, width, height);
+  } else if (ratio <= 0.72) {
+    if (logo) placeElement(logo, pad, pad, Math.min(width * 0.42, 180), Math.max(34, height * 0.05), width, height);
+    if (headline) placeElement(headline, pad, height * 0.13, width - pad * 2, height * 0.16, width, height);
+    if (subhead) placeElement(subhead, pad, height * 0.31, width - pad * 2, height * 0.1, width, height);
+    visuals.forEach((el, index) => {
+      const visualH = height * (visuals.length > 1 ? 0.26 : 0.34);
+      const visualW = width * (visuals.length > 1 ? 0.42 : 0.62);
+      const x = visuals.length > 1 ? pad + index * (visualW + pad * 0.5) : (width - visualW) / 2;
+      placeElement(el, x, height * 0.46, visualW, visualH, width, height);
+    });
+    if (metric) placeElement(metric, pad, height * 0.76, width * 0.42, height * 0.09, width, height);
+    if (cta) placeElement(cta, pad, height - pad - Math.max(44, height * 0.055), width - pad * 2, Math.max(44, height * 0.055), width, height);
+  } else {
+    if (logo) placeElement(logo, pad, pad, Math.min(width * 0.28, 180), Math.max(34, height * 0.055), width, height);
+    if (headline) placeElement(headline, pad, height * 0.16, width * 0.52, height * 0.22, width, height);
+    if (subhead) placeElement(subhead, pad, height * 0.4, width * 0.48, height * 0.12, width, height);
+    visuals.forEach((el, index) => {
+      const visualW = width * (visuals.length > 1 ? 0.28 : 0.36);
+      placeElement(el, width - pad - visualW, height * (0.28 + index * 0.2), visualW, height * 0.42, width, height);
+    });
+    if (metric) placeElement(metric, pad, height * 0.68, width * 0.28, height * 0.1, width, height);
+    if (cta) placeElement(cta, pad, height - pad - Math.max(48, height * 0.07), Math.min(width * 0.34, 220), Math.max(44, height * 0.07), width, height);
+  }
+
+  customTexts.forEach((el, index) => {
+    const y = clamp((subhead?.y || pad) + (subhead?.h || 40) + pad * 0.5 + index * (el.h + pad * 0.35), pad, height - el.h - pad);
+    placeElement(el, pad, y, Math.min(el.w, width - pad * 2), el.h, width, height);
+  });
+
+  elements.forEach((el) => fitElement(el, width, height));
+  return elements;
+}
+
 function adaptTemplate(template, width, height) {
   const sx = width / template.width;
   const sy = height / template.height;
@@ -462,8 +704,9 @@ function adaptTemplate(template, width, height) {
     fitElement(next, width, height);
     return next;
   });
-  hydrateImages(elements);
-  return elements;
+  const optimized = optimizeSmartLayout(elements, width, height);
+  hydrateImages(optimized);
+  return optimized;
 }
 
 function hydrateImages(elements = state.elements) {
@@ -523,6 +766,7 @@ function saveTemplate() {
 }
 
 function addElement(kind, imageData = null) {
+  pushHistory();
   const [, width, height] = activePreset();
   const base = Math.min(width, height);
   let element;
@@ -609,6 +853,7 @@ function insertAssetAsImage(asset, point = null) {
 }
 
 function setLogoAsset(asset) {
+  pushHistory();
   const [, width, height] = activePreset();
   let logo = state.elements.find((el) => el.type === "logo");
   if (!logo) {
@@ -689,6 +934,7 @@ function renderPresetList() {
     button.type = "button";
     button.innerHTML = `<span>${name}</span><small>${width} x ${height}</small>`;
     button.addEventListener("click", () => {
+      pushHistory();
       state.presetIndex = index;
       applyTemplateForCurrentSize();
       render();
@@ -705,6 +951,8 @@ function renderLanguages() {
     button.type = "button";
     button.textContent = languageLabels[code] || code;
     button.addEventListener("click", () => {
+      pushHistory();
+      captureElementTextSources(state.language);
       persistCurrentCopyToLanguage();
       state.language = code;
       applyCopyForLanguage(code);
@@ -974,6 +1222,7 @@ function canvasPoint(event) {
 
 function beginCanvasTextEdit(el) {
   if (!isTextEditable(el)) return;
+  pushHistory();
   const canvasRect = els.canvas.getBoundingClientRect();
   const wrapRect = els.stageWrap.getBoundingClientRect();
   const sx = canvasRect.width / els.canvas.width;
@@ -1084,6 +1333,7 @@ function onPointerDown(event) {
     renderCanvas();
     return;
   }
+  pushHistory();
   state.selectedId = hit.el.id;
   state.drag = {
     mode: hit.action,
@@ -1211,6 +1461,7 @@ function handleImageUpload(event) {
 function deleteSelectedElement() {
   const el = selectedElement();
   if (!el || el.id === "card") return;
+  pushHistory();
   state.elements = state.elements.filter((item) => item.id !== el.id);
   delete state.imageCache[el.id];
   state.selectedId = null;
@@ -1229,12 +1480,38 @@ function nudgeSelected(event) {
   };
   if (!deltas[event.key]) return;
   event.preventDefault();
+  pushHistory();
   const amount = event.shiftKey ? 10 : 1;
   const [, width, height] = activePreset();
   el.x += deltas[event.key][0] * amount;
   el.y += deltas[event.key][1] * amount;
   fitElement(el, width, height);
   renderCanvas();
+}
+
+function isTypingTarget(target) {
+  const tag = target?.tagName?.toLowerCase();
+  return tag === "input" || tag === "textarea" || tag === "select" || target?.isContentEditable;
+}
+
+function onGlobalKeyDown(event) {
+  if (state.textEdit) return;
+  const isUndo = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z";
+  const isRedo = ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "y") || (isUndo && event.shiftKey);
+  if (isRedo && !isTypingTarget(event.target)) {
+    event.preventDefault();
+    redo();
+    return;
+  }
+  if (isUndo && !isTypingTarget(event.target)) {
+    event.preventDefault();
+    undo();
+    return;
+  }
+  if ((event.key === "Delete" || event.key === "Backspace") && !isTypingTarget(event.target) && selectedElement()) {
+    event.preventDefault();
+    deleteSelectedElement();
+  }
 }
 
 function downloadCanvas(name) {
@@ -1278,6 +1555,7 @@ function exportBatch() {
 
 document.querySelectorAll(".mode-tab").forEach((button) => {
   button.addEventListener("click", () => {
+    pushHistory();
     persistCurrentCopyToLanguage();
     state.mode = button.dataset.mode;
     state.presetIndex = 0;
@@ -1289,31 +1567,38 @@ document.querySelectorAll(".mode-tab").forEach((button) => {
   });
 });
 
+document.addEventListener("keydown", onGlobalKeyDown);
+els.headline.addEventListener("focus", pushHistory);
 els.headline.addEventListener("input", () => {
   state.headline = els.headline.value;
   persistCurrentCopyToLanguage();
   renderCanvas();
 });
+els.subhead.addEventListener("focus", pushHistory);
 els.subhead.addEventListener("input", () => {
   state.subhead = els.subhead.value;
   persistCurrentCopyToLanguage();
   renderCanvas();
 });
+els.cta.addEventListener("focus", pushHistory);
 els.cta.addEventListener("input", () => {
   state.cta = els.cta.value;
   persistCurrentCopyToLanguage();
   renderCanvas();
 });
+els.accent.addEventListener("focus", pushHistory);
 els.accent.addEventListener("input", () => {
   state.accent = els.accent.value;
   document.documentElement.style.setProperty("--accent", state.accent);
   renderCanvas();
 });
+els.background.addEventListener("focus", pushHistory);
 els.background.addEventListener("input", () => {
   state.background = els.background.value;
   renderCanvas();
 });
 els.showMetrics.addEventListener("change", () => {
+  pushHistory();
   state.showMetrics = els.showMetrics.checked;
   renderCanvas();
 });
@@ -1339,9 +1624,11 @@ els.textEditor.addEventListener("keydown", (event) => {
 });
 els.imageUpload.addEventListener("change", handleImageUpload);
 els.deleteElement.addEventListener("click", deleteSelectedElement);
+els.selectedContent.addEventListener("focus", pushHistory);
 els.selectedContent.addEventListener("input", () => updateSelectedContent(els.selectedContent.value));
 els.lockCopy.addEventListener("click", lockCurrentCopy);
 els.autoTranslate.addEventListener("change", () => {
+  pushHistory();
   state.autoTranslate = els.autoTranslate.checked;
   localStorage.setItem("creativeOpsAutoTranslate", JSON.stringify(state.autoTranslate));
   if (state.autoTranslate && !state.sourceCopy) {
@@ -1356,15 +1643,10 @@ els.autoTranslate.addEventListener("change", () => {
 });
 els.saveAsTemplate.addEventListener("click", () => saveTemplateToLibrary(true));
 els.updateTemplate.addEventListener("click", () => saveTemplateToLibrary(false));
-els.applyTemplate.addEventListener("click", () => applyTemplateById(els.templateSelect.value));
 els.templateSelect.addEventListener("change", () => {
   const template = state.templateLibrary.find((item) => item.id === els.templateSelect.value);
   if (!template) return;
-  state.activeTemplateId = template.id;
-  els.templateName.value = template.name;
-  persistTemplateLibrary();
-  state.lastTemplateMessage = `已选择模板：${template.name}`;
-  updateSelectedLabel();
+  applyTemplateById(template.id);
 });
 document.querySelectorAll("[data-add-element]").forEach((button) => {
   button.addEventListener("click", () => addElement(button.dataset.addElement));
@@ -1376,6 +1658,7 @@ document.querySelectorAll("[data-add-element]").forEach((button) => {
   [els.elementH, "h"],
   [els.elementFont, "font"],
 ].forEach(([input, field]) => {
+  input.addEventListener("focus", pushHistory);
   input.addEventListener("change", () => updateSelectedGeometry(field, Number(input.value)));
   input.addEventListener("input", () => updateSelectedGeometry(field, Number(input.value)));
 });
@@ -1383,6 +1666,7 @@ document.querySelector("#exportCurrent").addEventListener("click", exportCurrent
 document.querySelector("#exportBatch").addEventListener("click", exportBatch);
 document.querySelector("#saveTemplate").addEventListener("click", () => saveTemplateToLibrary(false));
 document.querySelector("#resetLayout").addEventListener("click", () => {
+  pushHistory();
   const [, width, height] = activePreset();
   state.elements = defaultElements(state.mode, width, height);
   state.selectedId = null;
