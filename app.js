@@ -40,6 +40,8 @@ const elementNames = {
   product: "产品视觉",
   metric: "数据模块",
   card: "社媒背景卡片",
+  image: "图片素材",
+  customText: "自定义文本",
 };
 
 const state = {
@@ -55,6 +57,8 @@ const state = {
   showMetrics: true,
   selectedId: null,
   elements: [],
+  imageCache: {},
+  elementCounter: 0,
   drag: null,
   lastTemplateMessage: "",
   savedTemplates: JSON.parse(localStorage.getItem("creativeOpsTemplates") || "{}"),
@@ -83,6 +87,9 @@ const els = {
   elementW: document.querySelector("#elementWInput"),
   elementH: document.querySelector("#elementHInput"),
   elementFont: document.querySelector("#elementFontInput"),
+  selectedContent: document.querySelector("#selectedContentInput"),
+  imageUpload: document.querySelector("#imageUploadInput"),
+  deleteElement: document.querySelector("#deleteElement"),
 };
 
 const ctx = els.canvas.getContext("2d");
@@ -101,6 +108,11 @@ function clamp(value, min, max) {
 
 function selectedElement() {
   return state.elements.find((item) => item.id === state.selectedId) || null;
+}
+
+function nextElementId(prefix) {
+  state.elementCounter += 1;
+  return `${prefix}-${Date.now().toString(36)}-${state.elementCounter}`;
 }
 
 function defaultElements(mode, width, height) {
@@ -154,7 +166,19 @@ function adaptTemplate(template, width, height) {
     fitElement(next, width, height);
     return next;
   });
+  hydrateImages(elements);
   return elements;
+}
+
+function hydrateImages(elements = state.elements) {
+  elements
+    .filter((el) => el.type === "image" && el.src && !state.imageCache[el.id])
+    .forEach((el) => {
+      const img = new Image();
+      img.onload = () => renderCanvas();
+      img.src = el.src;
+      state.imageCache[el.id] = img;
+    });
 }
 
 function templateDescription(template) {
@@ -170,6 +194,7 @@ function ensureLayout() {
     state.elements = saved ? adaptTemplate(saved, width, height) : defaultElements(state.mode, width, height);
   }
   state.elements.forEach((el) => fitElement(el, width, height));
+  hydrateImages();
 }
 
 function applyTemplateForCurrentSize() {
@@ -197,6 +222,77 @@ function saveTemplate() {
   localStorage.setItem("creativeOpsTemplates", JSON.stringify(state.savedTemplates));
   state.lastTemplateMessage = `已保存 ${width} x ${height} 为${state.mode === "banner" ? "多语言 Banner" : "社媒"}模板`;
   updateSelectedLabel();
+}
+
+function addElement(kind, imageData = null) {
+  const [, width, height] = activePreset();
+  const base = Math.min(width, height);
+  let element;
+  if (kind === "text") {
+    element = {
+      id: nextElementId("text"),
+      type: "text",
+      role: "custom",
+      text: "New text",
+      x: width * 0.18,
+      y: height * 0.18,
+      w: width * 0.34,
+      h: Math.max(42, height * 0.14),
+      font: Math.max(16, base * 0.07),
+      weight: 800,
+      color: "#ffffff",
+    };
+  }
+  if (kind === "cta") {
+    element = {
+      id: nextElementId("cta"),
+      type: "cta",
+      label: "Button",
+      x: width * 0.18,
+      y: height * 0.7,
+      w: Math.max(96, width * 0.18),
+      h: Math.max(34, height * 0.12),
+    };
+  }
+  if (kind === "metric") {
+    element = {
+      id: nextElementId("metric"),
+      type: "metric",
+      x: width * 0.16,
+      y: height * 0.62,
+      w: width * 0.24,
+      h: height * 0.16,
+      font: Math.max(24, base * 0.11),
+    };
+  }
+  if (kind === "product") {
+    element = {
+      id: nextElementId("product"),
+      type: "product",
+      x: width * 0.62,
+      y: height * 0.24,
+      w: width * 0.2,
+      h: height * 0.46,
+    };
+  }
+  if (kind === "image") {
+    element = {
+      id: nextElementId("image"),
+      type: "image",
+      x: width * 0.58,
+      y: height * 0.2,
+      w: width * 0.28,
+      h: height * 0.48,
+      src: imageData.src,
+      fileName: imageData.name,
+    };
+  }
+  if (!element) return;
+  fitElement(element, width, height);
+  state.elements.push(element);
+  state.selectedId = element.id;
+  if (element.type === "image") hydrateImages([element]);
+  renderCanvas();
 }
 
 function renderPresetList() {
@@ -281,7 +377,7 @@ function wrapText(text, x, y, maxWidth, lineHeight, font, maxHeight = Infinity) 
 }
 
 function drawTextElement(el) {
-  const text = el.role === "headline" ? state.headline : state.subhead;
+  const text = el.role === "headline" ? state.headline : el.role === "subhead" ? state.subhead : el.text || "New text";
   let fontSize = el.font;
   const lineHeightRatio = el.role === "headline" ? 1.06 : 1.32;
   const minFont = 8;
@@ -317,7 +413,7 @@ function drawCta(el) {
   ctx.fillStyle = "#071012";
   ctx.font = `800 ${Math.max(10, Math.min(el.h * 0.36, el.w * 0.14))}px Arial`;
   ctx.textBaseline = "middle";
-  ctx.fillText(state.cta, el.x + el.h * 0.45, el.y + el.h / 2);
+  ctx.fillText(el.label || state.cta, el.x + el.h * 0.45, el.y + el.h / 2);
 }
 
 function drawProduct(el) {
@@ -358,6 +454,26 @@ function drawCard(el) {
   ctx.fill();
 }
 
+function drawImageElement(el) {
+  const img = state.imageCache[el.id];
+  if (img?.complete && img.naturalWidth > 0) {
+    const scale = Math.max(el.w / img.naturalWidth, el.h / img.naturalHeight);
+    const sw = el.w / scale;
+    const sh = el.h / scale;
+    const sx = (img.naturalWidth - sw) / 2;
+    const sy = (img.naturalHeight - sh) / 2;
+    ctx.drawImage(img, sx, sy, sw, sh, el.x, el.y, el.w, el.h);
+    return;
+  }
+  ctx.fillStyle = "#2b303b";
+  roundRect(el.x, el.y, el.w, el.h, 6);
+  ctx.fill();
+  ctx.fillStyle = "#9aa3b4";
+  ctx.font = `700 ${Math.max(12, Math.min(el.w, el.h) * 0.12)}px Arial`;
+  ctx.textBaseline = "middle";
+  ctx.fillText("Image", el.x + el.w * 0.14, el.y + el.h / 2);
+}
+
 function drawElement(el) {
   if (el.type === "card") drawCard(el);
   if (el.type === "logo") drawLogo(el);
@@ -365,6 +481,7 @@ function drawElement(el) {
   if (el.type === "cta") drawCta(el);
   if (el.type === "product") drawProduct(el);
   if (el.type === "metric") drawMetric(el);
+  if (el.type === "image") drawImageElement(el);
 }
 
 function drawSelection(el) {
@@ -428,6 +545,9 @@ function syncGeometryInputs(el) {
     controls.forEach((input) => {
       input.value = "";
     });
+    els.selectedContent.value = "";
+    els.selectedContent.disabled = true;
+    els.deleteElement.disabled = true;
     return;
   }
   els.elementX.value = Math.round(el.x);
@@ -436,6 +556,10 @@ function syncGeometryInputs(el) {
   els.elementH.value = Math.round(el.h);
   els.elementFont.disabled = !(el.type === "text" || el.type === "metric");
   els.elementFont.value = el.font ? Math.round(el.font) : "";
+  const contentValue = el.type === "text" && el.role === "custom" ? el.text : el.type === "cta" && el.label ? el.label : "";
+  els.selectedContent.disabled = !(el.type === "text" && el.role === "custom") && !(el.type === "cta" && el.label);
+  els.selectedContent.value = contentValue;
+  els.deleteElement.disabled = !el || el.id === "card";
 }
 
 function render() {
@@ -609,6 +733,42 @@ function updateSelectedGeometry(field, value) {
   renderCanvas();
 }
 
+function updateSelectedContent(value) {
+  const el = selectedElement();
+  if (!el) return;
+  if (el.type === "text" && el.role === "custom") el.text = value;
+  if (el.type === "cta" && el.label) el.label = value;
+  renderCanvas();
+}
+
+function handleImageUpload(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith("image/")) {
+    state.lastTemplateMessage = "只支持上传图片素材";
+    updateSelectedLabel();
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    addElement("image", { src: String(reader.result), name: file.name });
+    state.lastTemplateMessage = `已添加图片素材：${file.name}`;
+    updateSelectedLabel();
+    event.target.value = "";
+  };
+  reader.readAsDataURL(file);
+}
+
+function deleteSelectedElement() {
+  const el = selectedElement();
+  if (!el || el.id === "card") return;
+  state.elements = state.elements.filter((item) => item.id !== el.id);
+  delete state.imageCache[el.id];
+  state.selectedId = null;
+  state.lastTemplateMessage = `已删除 ${elementNames[el.id] || elementNames[el.type] || "元素"}`;
+  renderCanvas();
+}
+
 function nudgeSelected(event) {
   const el = selectedElement();
   if (!el) return;
@@ -723,6 +883,12 @@ els.canvas.addEventListener("pointermove", onPointerMove);
 els.canvas.addEventListener("pointerup", onPointerUp);
 els.canvas.addEventListener("pointerleave", onPointerUp);
 els.canvas.addEventListener("keydown", nudgeSelected);
+els.imageUpload.addEventListener("change", handleImageUpload);
+els.deleteElement.addEventListener("click", deleteSelectedElement);
+els.selectedContent.addEventListener("input", () => updateSelectedContent(els.selectedContent.value));
+document.querySelectorAll("[data-add-element]").forEach((button) => {
+  button.addEventListener("click", () => addElement(button.dataset.addElement));
+});
 [
   [els.elementX, "x"],
   [els.elementY, "y"],

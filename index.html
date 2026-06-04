@@ -101,7 +101,26 @@
               <input id="elementFontInput" type="number" step="1" />
             </label>
           </div>
+          <label>
+            选中元素内容
+            <input id="selectedContentInput" type="text" />
+          </label>
           <div class="template-status" id="templateStatus">未保存模板</div>
+          <button class="wide danger" id="deleteElement" type="button">删除选中元素</button>
+        </section>
+
+        <section class="panel">
+          <h2>素材 / 新增要素</h2>
+          <label class="file-control">
+            上传图片素材
+            <input id="imageUploadInput" type="file" accept="image/*" />
+          </label>
+          <div class="tool-grid">
+            <button class="wide" data-add-element="text" type="button">添加文本框</button>
+            <button class="wide" data-add-element="cta" type="button">添加按钮</button>
+            <button class="wide" data-add-element="metric" type="button">添加数据</button>
+            <button class="wide" data-add-element="product" type="button">添加产品视觉</button>
+          </div>
         </section>
 
         <section class="panel">
