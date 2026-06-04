@@ -129,8 +129,10 @@ const state = {
   selectedId: null,
   elements: [],
   imageCache: {},
+  assetLibrary: JSON.parse(localStorage.getItem("creativeOpsAssetLibrary") || "[]"),
   elementCounter: 0,
   drag: null,
+  textEdit: null,
   lastTemplateMessage: "",
   sourceCopy: JSON.parse(localStorage.getItem("creativeOpsSourceCopy") || "null"),
   autoTranslate: JSON.parse(localStorage.getItem("creativeOpsAutoTranslate") || "true"),
@@ -163,7 +165,10 @@ const els = {
   elementH: document.querySelector("#elementHInput"),
   elementFont: document.querySelector("#elementFontInput"),
   selectedContent: document.querySelector("#selectedContentInput"),
+  stageWrap: document.querySelector("#stageWrap"),
+  textEditor: document.querySelector("#canvasTextEditor"),
   imageUpload: document.querySelector("#imageUploadInput"),
+  assetLibrary: document.querySelector("#assetLibrary"),
   deleteElement: document.querySelector("#deleteElement"),
   templateName: document.querySelector("#templateNameInput"),
   templateSelect: document.querySelector("#templateSelect"),
@@ -208,6 +213,34 @@ function sourceCopyValues() {
 
 function persistCurrentCopyToLanguage() {
   copyByLanguage[state.language] = [state.headline, state.subhead, state.cta];
+}
+
+function editableTextValue(el) {
+  if (!el) return "";
+  if (el.type === "text" && el.role === "headline") return state.headline;
+  if (el.type === "text" && el.role === "subhead") return state.subhead;
+  if (el.type === "text") return el.text || "";
+  if (el.type === "cta") return el.label || state.cta;
+  return "";
+}
+
+function setEditableTextValue(el, value) {
+  if (!el) return;
+  if (el.type === "text" && el.role === "headline") state.headline = value;
+  else if (el.type === "text" && el.role === "subhead") state.subhead = value;
+  else if (el.type === "text") el.text = value;
+  else if (el.type === "cta" && el.label) el.label = value;
+  else if (el.type === "cta") state.cta = value;
+  persistCurrentCopyToLanguage();
+  syncInputs();
+}
+
+function isTextEditable(el) {
+  return el?.type === "text" || el?.type === "cta";
+}
+
+function persistAssetLibrary() {
+  localStorage.setItem("creativeOpsAssetLibrary", JSON.stringify(state.assetLibrary));
 }
 
 function autoTranslateText(text, targetLang) {
@@ -284,6 +317,7 @@ function buildTemplatePayload(name, id = nextElementId("template")) {
     sourceCopy: clone(state.sourceCopy || sourceCopyValues()),
     copyByLanguage: clone(copyByLanguage),
     elements: clone(state.elements),
+    assets: clone(state.assetLibrary),
     style: {
       accent: state.accent,
       background: state.background,
@@ -342,6 +376,10 @@ function applyTemplateById(id) {
   state.sourceCopy = clone(template.sourceCopy || null);
   localStorage.setItem("creativeOpsSourceCopy", JSON.stringify(state.sourceCopy));
   Object.assign(copyByLanguage, clone(template.copyByLanguage || {}));
+  if (template.assets) {
+    state.assetLibrary = clone(template.assets);
+    persistAssetLibrary();
+  }
   Object.assign(state, {
     accent: template.style?.accent || state.accent,
     background: template.style?.background || state.background,
@@ -394,7 +432,7 @@ function defaultElements(mode, width, height) {
     { id: "logo", type: "logo", x: pad, y: pad, w: Math.max(112, width * 0.16), h: Math.max(24, height * 0.16) },
     { id: "headline", type: "text", role: "headline", x: pad, y: height < 130 ? pad + 34 : pad + height * 0.24, w: width * 0.44, h: height * 0.27, font: titleSize, weight: 800, color: "#ffffff" },
     { id: "subhead", type: "text", role: "subhead", x: pad, y: height * 0.56, w: width * 0.44, h: height * 0.16, font: Math.max(12, titleSize * 0.38), weight: 500, color: "#bac4d4" },
-    { id: "cta", type: "cta", x: pad, y: height - pad - Math.max(34, height * 0.16), w: Math.max(96, Math.min(width * 0.22, 170)), h: Math.max(34, height * 0.16) },
+    { id: "cta", type: "cta", x: pad, y: height - pad - Math.max(34, height * 0.16), w: Math.max(96, Math.min(width * 0.22, 170)), h: Math.max(34, height * 0.16), font: Math.max(12, titleSize * 0.42) },
     { id: "product", type: "product", x: width * 0.67, y: height * 0.18, w: width * 0.2, h: height * 0.62 },
   ];
 }
@@ -406,7 +444,7 @@ function fitElement(el, width, height) {
   el.h = clamp(el.h, minH, height);
   el.x = clamp(el.x, 0, Math.max(0, width - el.w));
   el.y = clamp(el.y, 0, Math.max(0, height - el.h));
-  if (el.type === "text" || el.type === "metric") {
+  if (el.type === "text" || el.type === "metric" || el.type === "cta") {
     el.font = clamp(el.font || 18, 8, Math.max(10, Math.min(width, height) * 0.45));
   }
 }
@@ -431,7 +469,7 @@ function adaptTemplate(template, width, height) {
 
 function hydrateImages(elements = state.elements) {
   elements
-    .filter((el) => el.type === "image" && el.src && !state.imageCache[el.id])
+    .filter((el) => (el.type === "image" || el.type === "logo") && el.src && !state.imageCache[el.id])
     .forEach((el) => {
       const img = new Image();
       img.onload = () => renderCanvas();
@@ -513,6 +551,7 @@ function addElement(kind, imageData = null) {
       y: height * 0.7,
       w: Math.max(96, width * 0.18),
       h: Math.max(34, height * 0.12),
+      font: Math.max(12, base * 0.045),
     };
   }
   if (kind === "metric") {
@@ -554,6 +593,93 @@ function addElement(kind, imageData = null) {
   state.selectedId = element.id;
   if (element.type === "image") hydrateImages([element]);
   renderCanvas();
+  return element;
+}
+
+function insertAssetAsImage(asset, point = null) {
+  const element = addElement("image", { src: asset.src, name: asset.name });
+  if (element && point) {
+    element.x = point.x - element.w / 2;
+    element.y = point.y - element.h / 2;
+    const [, width, height] = activePreset();
+    fitElement(element, width, height);
+    renderCanvas();
+  }
+  state.lastTemplateMessage = `已插入素材：${asset.name}`;
+  updateSelectedLabel();
+}
+
+function setLogoAsset(asset) {
+  const [, width, height] = activePreset();
+  let logo = state.elements.find((el) => el.type === "logo");
+  if (!logo) {
+    logo = {
+      id: "logo",
+      type: "logo",
+      x: width * 0.05,
+      y: height * 0.08,
+      w: Math.max(110, width * 0.16),
+      h: Math.max(34, height * 0.16),
+    };
+    state.elements.push(logo);
+  }
+  Object.assign(logo, {
+    src: asset.src,
+    fileName: asset.name,
+    assetId: asset.id,
+  });
+  delete state.imageCache[logo.id];
+  fitElement(logo, width, height);
+  hydrateImages([logo]);
+  state.selectedId = logo.id;
+  state.lastTemplateMessage = `已设置 Logo：${asset.name}`;
+  renderCanvas();
+}
+
+function renderAssetLibrary() {
+  els.assetLibrary.innerHTML = "";
+  if (!state.assetLibrary.length) {
+    const empty = document.createElement("div");
+    empty.className = "asset-empty";
+    empty.textContent = "上传 Logo、产品图或其他素材后，可从这里插入画布或设为 Logo。";
+    els.assetLibrary.append(empty);
+    return;
+  }
+  state.assetLibrary.forEach((asset) => {
+    const item = document.createElement("div");
+    item.className = "asset-item";
+    item.draggable = true;
+    item.addEventListener("dragstart", (event) => {
+      event.dataTransfer.setData("text/plain", asset.id);
+      event.dataTransfer.effectAllowed = "copy";
+    });
+
+    const img = document.createElement("img");
+    img.className = "asset-thumb";
+    img.src = asset.src;
+    img.alt = asset.name;
+
+    const meta = document.createElement("div");
+    meta.className = "asset-meta";
+    const name = document.createElement("div");
+    name.className = "asset-name";
+    name.textContent = asset.name;
+
+    const actions = document.createElement("div");
+    actions.className = "asset-actions";
+    const insert = document.createElement("button");
+    insert.type = "button";
+    insert.textContent = "插入";
+    insert.addEventListener("click", () => insertAssetAsImage(asset));
+    const logo = document.createElement("button");
+    logo.type = "button";
+    logo.textContent = "设为 Logo";
+    logo.addEventListener("click", () => setLogoAsset(asset));
+    actions.append(insert, logo);
+    meta.append(name, actions);
+    item.append(img, meta);
+    els.assetLibrary.append(item);
+  });
 }
 
 function renderPresetList() {
@@ -640,21 +766,23 @@ function wrapText(text, x, y, maxWidth, lineHeight, font, maxHeight = Infinity) 
 
 function drawTextElement(el) {
   const text = el.role === "headline" ? state.headline : el.role === "subhead" ? state.subhead : el.text || "New text";
-  let fontSize = el.font;
+  const fontSize = el.font;
   const lineHeightRatio = el.role === "headline" ? 1.06 : 1.32;
-  const minFont = 8;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(el.x, el.y, el.w, el.h);
+  ctx.clip();
   ctx.textBaseline = "top";
   ctx.fillStyle = el.color || "#ffffff";
-  while (fontSize > minFont) {
-    ctx.font = `${el.weight || 700} ${fontSize}px Arial`;
-    const lines = Math.ceil(ctx.measureText(text).width / Math.max(1, el.w));
-    if (lines * fontSize * lineHeightRatio <= el.h * 1.12) break;
-    fontSize -= 1;
-  }
   wrapText(text, el.x, el.y, el.w, fontSize * lineHeightRatio, `${el.weight || 700} ${fontSize}px Arial`, el.h);
+  ctx.restore();
 }
 
 function drawLogo(el) {
+  if (el.src) {
+    drawImageElement(el, "contain");
+    return;
+  }
   const mark = Math.min(el.h, el.w * 0.32);
   ctx.fillStyle = state.accent;
   roundRect(el.x, el.y + (el.h - mark) / 2, mark, mark, 5);
@@ -673,7 +801,7 @@ function drawCta(el) {
   roundRect(el.x, el.y, el.w, el.h, Math.min(18, el.h / 2));
   ctx.fill();
   ctx.fillStyle = "#071012";
-  ctx.font = `800 ${Math.max(10, Math.min(el.h * 0.36, el.w * 0.14))}px Arial`;
+  ctx.font = `800 ${Math.max(10, el.font || Math.min(el.h * 0.36, el.w * 0.14))}px Arial`;
   ctx.textBaseline = "middle";
   ctx.fillText(el.label || state.cta, el.x + el.h * 0.45, el.y + el.h / 2);
 }
@@ -716,15 +844,23 @@ function drawCard(el) {
   ctx.fill();
 }
 
-function drawImageElement(el) {
+function drawImageElement(el, fit = "cover") {
   const img = state.imageCache[el.id];
   if (img?.complete && img.naturalWidth > 0) {
-    const scale = Math.max(el.w / img.naturalWidth, el.h / img.naturalHeight);
+    const scale = fit === "contain"
+      ? Math.min(el.w / img.naturalWidth, el.h / img.naturalHeight)
+      : Math.max(el.w / img.naturalWidth, el.h / img.naturalHeight);
     const sw = el.w / scale;
     const sh = el.h / scale;
     const sx = (img.naturalWidth - sw) / 2;
     const sy = (img.naturalHeight - sh) / 2;
-    ctx.drawImage(img, sx, sy, sw, sh, el.x, el.y, el.w, el.h);
+    if (fit === "contain") {
+      const dw = img.naturalWidth * scale;
+      const dh = img.naturalHeight * scale;
+      ctx.drawImage(img, el.x + (el.w - dw) / 2, el.y + (el.h - dh) / 2, dw, dh);
+    } else {
+      ctx.drawImage(img, sx, sy, sw, sh, el.x, el.y, el.w, el.h);
+    }
     return;
   }
   ctx.fillStyle = "#2b303b";
@@ -792,7 +928,7 @@ function renderMeta() {
 function updateSelectedLabel() {
   const el = selectedElement();
   els.selectedElement.textContent = el
-    ? `${elementNames[el.id] || el.id} · ${Math.round(el.x)}, ${Math.round(el.y)} · ${Math.round(el.w)} x ${Math.round(el.h)}`
+    ? `${elementNames[el.id] || elementNames[el.type] || el.fileName || el.id} · ${Math.round(el.x)}, ${Math.round(el.y)} · ${Math.round(el.w)} x ${Math.round(el.h)}`
     : "未选中元素";
   els.templateStatus.textContent = state.lastTemplateMessage || templateDescription(state.savedTemplates[state.mode]);
   syncGeometryInputs(el);
@@ -816,11 +952,10 @@ function syncGeometryInputs(el) {
   els.elementY.value = Math.round(el.y);
   els.elementW.value = Math.round(el.w);
   els.elementH.value = Math.round(el.h);
-  els.elementFont.disabled = !(el.type === "text" || el.type === "metric");
+  els.elementFont.disabled = !(el.type === "text" || el.type === "metric" || el.type === "cta");
   els.elementFont.value = el.font ? Math.round(el.font) : "";
-  const contentValue = el.type === "text" && el.role === "custom" ? el.text : el.type === "cta" && el.label ? el.label : "";
-  els.selectedContent.disabled = !(el.type === "text" && el.role === "custom") && !(el.type === "cta" && el.label);
-  els.selectedContent.value = contentValue;
+  els.selectedContent.disabled = !isTextEditable(el);
+  els.selectedContent.value = editableTextValue(el);
   els.deleteElement.disabled = !el || el.id === "card";
 }
 
@@ -828,6 +963,7 @@ function render() {
   renderPresetList();
   renderLanguages();
   renderTemplateSelect();
+  renderAssetLibrary();
   renderCanvas();
   renderMeta();
 }
@@ -838,6 +974,54 @@ function canvasPoint(event) {
     x: ((event.clientX - rect.left) / rect.width) * els.canvas.width,
     y: ((event.clientY - rect.top) / rect.height) * els.canvas.height,
   };
+}
+
+function beginCanvasTextEdit(el) {
+  if (!isTextEditable(el)) return;
+  const canvasRect = els.canvas.getBoundingClientRect();
+  const wrapRect = els.stageWrap.getBoundingClientRect();
+  const sx = canvasRect.width / els.canvas.width;
+  const sy = canvasRect.height / els.canvas.height;
+  const editor = els.textEditor;
+  state.textEdit = { id: el.id, original: editableTextValue(el) };
+  editor.value = editableTextValue(el);
+  editor.style.display = "block";
+  editor.style.left = `${canvasRect.left - wrapRect.left + els.stageWrap.scrollLeft + el.x * sx}px`;
+  editor.style.top = `${canvasRect.top - wrapRect.top + els.stageWrap.scrollTop + el.y * sy}px`;
+  editor.style.width = `${Math.max(40, el.w * sx)}px`;
+  editor.style.height = `${Math.max(28, el.h * sy)}px`;
+  editor.style.font = `${el.weight || 800} ${Math.max(11, (el.font || 16) * sx)}px Arial`;
+  editor.style.lineHeight = el.type === "cta" ? "1.2" : (el.role === "headline" ? "1.06" : "1.32");
+  editor.focus();
+  editor.select();
+}
+
+function finishCanvasTextEdit(commit = true) {
+  if (!state.textEdit) return;
+  const el = state.elements.find((item) => item.id === state.textEdit.id);
+  if (commit && el) {
+    setEditableTextValue(el, els.textEditor.value);
+  }
+  state.textEdit = null;
+  els.textEditor.style.display = "none";
+  renderCanvas();
+}
+
+function onCanvasDoubleClick(event) {
+  const hit = hitTest(canvasPoint(event));
+  if (!hit || !isTextEditable(hit.el)) return;
+  event.preventDefault();
+  state.selectedId = hit.el.id;
+  renderCanvas();
+  beginCanvasTextEdit(hit.el);
+}
+
+function onCanvasAssetDrop(event) {
+  event.preventDefault();
+  const assetId = event.dataTransfer.getData("text/plain");
+  const asset = state.assetLibrary.find((item) => item.id === assetId);
+  if (!asset) return;
+  insertAssetAsImage(asset, canvasPoint(event));
 }
 
 function handleRects(el) {
@@ -896,6 +1080,7 @@ function hitTest(point) {
 }
 
 function onPointerDown(event) {
+  if (state.textEdit) finishCanvasTextEdit(true);
   const point = canvasPoint(event);
   const hit = hitTest(point);
   if (!hit) {
@@ -933,10 +1118,6 @@ function onPointerMove(event) {
     el.y = state.drag.original.y + dy;
   } else {
     resizeElementFromHandle(el, state.drag.original, dx, dy, state.drag.handle);
-    if (el.font) {
-      const scale = Math.min(el.w / state.drag.original.w, el.h / state.drag.original.h);
-      el.font = state.drag.original.font * scale;
-    }
   }
   fitElement(el, width, height);
   renderCanvas();
@@ -991,7 +1172,7 @@ function updateSelectedGeometry(field, value) {
   if (field === "y") el.y = value;
   if (field === "w") el.w = value;
   if (field === "h") el.h = value;
-  if (field === "font" && (el.type === "text" || el.type === "metric")) el.font = value;
+  if (field === "font" && (el.type === "text" || el.type === "metric" || el.type === "cta")) el.font = value;
   fitElement(el, width, height);
   renderCanvas();
 }
@@ -999,8 +1180,7 @@ function updateSelectedGeometry(field, value) {
 function updateSelectedContent(value) {
   const el = selectedElement();
   if (!el) return;
-  if (el.type === "text" && el.role === "custom") el.text = value;
-  if (el.type === "cta" && el.label) el.label = value;
+  setEditableTextValue(el, value);
   renderCanvas();
 }
 
@@ -1014,8 +1194,18 @@ function handleImageUpload(event) {
   }
   const reader = new FileReader();
   reader.onload = () => {
-    addElement("image", { src: String(reader.result), name: file.name });
-    state.lastTemplateMessage = `已添加图片素材：${file.name}`;
+    const asset = {
+      id: nextElementId("asset"),
+      name: file.name,
+      src: String(reader.result),
+      type: file.type,
+      createdAt: new Date().toISOString(),
+    };
+    state.assetLibrary.unshift(asset);
+    persistAssetLibrary();
+    insertAssetAsImage(asset);
+    renderAssetLibrary();
+    state.lastTemplateMessage = `已上传并插入素材：${file.name}`;
     updateSelectedLabel();
     event.target.value = "";
   };
@@ -1150,7 +1340,21 @@ els.canvas.addEventListener("pointerdown", onPointerDown);
 els.canvas.addEventListener("pointermove", onPointerMove);
 els.canvas.addEventListener("pointerup", onPointerUp);
 els.canvas.addEventListener("pointerleave", onPointerUp);
+els.canvas.addEventListener("dblclick", onCanvasDoubleClick);
 els.canvas.addEventListener("keydown", nudgeSelected);
+els.canvas.addEventListener("dragover", (event) => event.preventDefault());
+els.canvas.addEventListener("drop", onCanvasAssetDrop);
+els.textEditor.addEventListener("blur", () => finishCanvasTextEdit(true));
+els.textEditor.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    finishCanvasTextEdit(false);
+  }
+  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+    event.preventDefault();
+    finishCanvasTextEdit(true);
+  }
+});
 els.imageUpload.addEventListener("change", handleImageUpload);
 els.deleteElement.addEventListener("click", deleteSelectedElement);
 els.selectedContent.addEventListener("input", () => updateSelectedContent(els.selectedContent.value));

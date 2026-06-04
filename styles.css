@@ -207,6 +207,7 @@ button {
 }
 
 .stage-wrap {
+  position: relative;
   display: grid;
   place-items: center;
   padding: 24px;
@@ -219,6 +220,20 @@ button {
   background-color: #101219;
   background-position: 0 0, 0 12px, 12px -12px, -12px 0;
   background-size: 24px 24px;
+}
+
+.canvas-text-editor {
+  position: absolute;
+  z-index: 5;
+  display: none;
+  margin: 0;
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  background: rgba(16, 19, 25, 0.92);
+  color: #ffffff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  resize: none;
+  overflow: hidden;
 }
 
 canvas {
@@ -283,6 +298,14 @@ textarea {
   line-height: 1.45;
 }
 
+.canvas-text-editor {
+  box-sizing: border-box;
+  width: auto;
+  padding: 4px 6px;
+  border-color: var(--accent);
+  background: rgba(16, 19, 25, 0.92);
+}
+
 .check-row {
   grid-template-columns: 18px 1fr;
   align-items: center;
@@ -306,6 +329,66 @@ textarea {
 .file-control input {
   margin-top: 2px;
   padding: 8px;
+}
+
+.asset-library {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.asset-empty {
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.asset-item {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+  padding: 8px;
+}
+
+.asset-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 5px;
+  object-fit: contain;
+  background: #0d1016;
+}
+
+.asset-meta {
+  min-width: 0;
+}
+
+.asset-name {
+  overflow: hidden;
+  color: #d7deeb;
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.asset-actions button {
+  min-height: 30px;
+  padding: 0 8px;
+  font-size: 11px;
 }
 
 .tool-grid {

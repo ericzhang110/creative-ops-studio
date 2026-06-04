@@ -56,6 +56,7 @@
 
         <div class="stage-wrap" id="stageWrap">
           <canvas id="previewCanvas" width="970" height="250" tabindex="0" aria-label="可编辑画布"></canvas>
+          <textarea id="canvasTextEditor" class="canvas-text-editor" spellcheck="false"></textarea>
         </div>
 
         <section class="output-strip">
@@ -77,7 +78,7 @@
       <aside class="inspector">
         <section class="panel">
           <h2>画布编辑</h2>
-          <p class="hint" id="editHint">点击元素选中，拖动移动；拖控制点调整大小。方向键微调位置，Shift + 方向键每次移动 10px。</p>
+          <p class="hint" id="editHint">点击元素选中，拖动移动；拖控制点调整大小。双击文本可直接编辑。方向键微调位置，Shift + 方向键每次移动 10px。</p>
           <div class="selected-chip" id="selectedElement">未选中元素</div>
           <div class="geometry-grid">
             <label>
@@ -132,6 +133,7 @@
             上传图片素材
             <input id="imageUploadInput" type="file" accept="image/*" />
           </label>
+          <div class="asset-library" id="assetLibrary"></div>
           <div class="tool-grid">
             <button class="wide" data-add-element="text" type="button">添加文本框</button>
             <button class="wide" data-add-element="cta" type="button">添加按钮</button>
